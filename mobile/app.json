@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "Grenjo AI Tool",
+    "slug": "grenjo-ai-tool",
+    "scheme": "grenjoaitool",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0e0e11",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.grenjo.aitool",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Grenjo AI Tool records a voice memo so you can transcribe it into your message. Recording starts only when you tap the microphone.",
+        "NSCameraUsageDescription": "Grenjo AI Tool uses the camera only when you choose to take a photo to send to a vision-capable model.",
+        "NSPhotoLibraryUsageDescription": "Grenjo AI Tool needs access to the photo you choose to attach to a message."
+      }
+    },
+    "android": {
+      "package": "com.grenjo.aitool",
+      "adaptiveIcon": {
+        "backgroundColor": "#0e0e11",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.RECORD_AUDIO"]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-secure-store",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Grenjo AI Tool records a voice memo so you can transcribe it into your message.",
+          "enableBackgroundRecording": false,
+          "enableBackgroundPlayback": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Grenjo AI Tool needs access to the photo you choose to attach to a message.",
+          "cameraPermission": "Grenjo AI Tool uses the camera only when you choose to take a photo to send to a vision-capable model."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    }
+  }
+}
