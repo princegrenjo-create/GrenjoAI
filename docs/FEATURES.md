@@ -157,8 +157,42 @@ The renderer exceeds the 200 kB gzip guideline by ~13 kB, almost entirely
 fetch, so it does not affect start time on this platform; if it matters, restrict
 the highlighter to a language subset or lazy-load it. Recorded rather than hidden.
 
-## Deliberately not in this release
+## Audit status
 
+An independent auditor (a teammate that wrote none of this code) ran two passes.
+
+| Pass | Verdict | Report |
+|---|---|---|
+| 1 | `REGRESSION FOUND` — 2 blockers, 3 majors, 5 minors | `.work/2026-10-29-personal-ai-desk/out/audit-2026-10-29.md` |
+| 2 (final) | `VERIFIED WITH CAVEATS` — **GO for owner hand-off, with conditions**. No blocker, no major | `.work/2026-10-29-personal-ai-desk/out/audit-2026-10-29-pass2.md` |
+
+The audited artifact is commit `06142c3` and installer
+`sha256 7223DEC3…81DA38`. The auditor verified the build is not older than the
+source, read the fuse wire back out of the shipped exe, confirmed `app.asar`
+contains no source, test, sink, `.env`, credential or SQLite file, and re-ran every
+suite (including under a shifted timezone) with identical results.
+
+### Conditions on the hand-off (owner actions, not defects)
+
+1. No live provider call has ever been made. Your first real acceptance is: add a
+   key → *Test connection* → send one message.
+2. No live Supabase project exists. Keep sync off until `0001_init.sql` and
+   `0002_rls.sql` have run in your project, then watch the first two-device sync.
+3. The installer is unsigned, so SmartScreen warns on first run.
+4. Any further edit needs a rebuild and a new hash; the certification covers
+   `06142c3` and that installer hash only.
+
+### Accepted residual risks (auditor pass 2)
+
+| Residual | Impact | Why accepted |
+|---|---|---|
+| The sync engine's test double still compares `version` only, while production also compares `updated_at` | Test-adequacy smell; the real rule is guarded by 5 cases in `tests/main/db/sync.test.ts`, and the auditor re-proved it 9/9 against the real repository | Test-only; changing it would move the certified commit for no shipped benefit |
+| The startup repair of a `streaming` message does not bump `version`/`dirty`, and a `streaming` status pulled from another device is applied verbatim | A repaired or remotely-streaming message shows as stopped locally until the next launch / is not re-uploaded | Cosmetic; no data loss |
+| A per-error `retryable: false` is lost across the IPC bridge (the code survives, retryability is re-derived from the code table) | Only the Retry affordance can be offered where it would fail again | The code table is right for every built-in code |
+| `npm audit` reports dev-only advisories (vitest/tinypool) | None shipped: `npm audit --omit=dev` is 0 | Dev toolchain only; upgrade when convenient |
+| A key is bound to the exact base URL including its path, so editing the path requires re-entering the key | Deliberate friction on a config edit | Safer than inferring which path changes are "the same destination" |
+
+## Deliberately not in this release
 - Subscriptions, payments, a public marketplace, multi-tenant SaaS.
 - Local model execution (llama.cpp / Ollama hosting inside the app).
 - Agent tool execution, shell access, multi-agent orchestration.
