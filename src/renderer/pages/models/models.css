@@ -1,0 +1,422 @@
+/*
+ * Models & Providers screen: the hint banner, the provider grid, the grouped
+ * model list and the custom-model area.
+ *
+ * Every length, colour and size resolves to a token in tokens.css. The only raw
+ * lengths are media-query breakpoints, because a custom property cannot appear in
+ * a media condition; they are documented here and nowhere else.
+ *
+ *   ≤ 60rem  the provider grid and the row action cluster stack
+ */
+
+.pds-models {
+  --pds-provider-min: calc(var(--size-card-min) + var(--space-4xl));
+  --pds-model-min: calc(var(--size-card-min) + var(--space-2xl));
+}
+
+/* --------------------------------------------------------------- banner -- */
+
+.pds-models__banner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: var(--size-border) solid var(--border);
+  border-left: var(--size-accent-bar) solid var(--info);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.pds-models__banner-icon {
+  display: inline-flex;
+  color: var(--info);
+}
+
+.pds-models__banner-text {
+  max-width: 90ch;
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+}
+
+.pds-models__banner-text strong {
+  color: var(--text);
+  font-weight: var(--weight-semibold);
+}
+
+/* -------------------------------------------------------------- sections -- */
+
+.pds-models__section {
+  display: grid;
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+.pds-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-lg);
+}
+
+.pds-section-head__text {
+  display: grid;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+
+.pds-section-title {
+  color: var(--text);
+  font-size: var(--text-h4);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-heading);
+}
+
+.pds-section-note {
+  max-width: 78ch;
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+}
+
+.pds-section-head__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-xs);
+}
+
+.pds-section-head__actions .pds-field {
+  min-width: var(--size-selector);
+}
+
+.pds-models__groups {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.pds-models__none {
+  max-width: 78ch;
+  padding: var(--space-md);
+  border: var(--size-border) dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+}
+
+/* ------------------------------------------------------------- providers -- */
+
+.pds-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--pds-provider-min), 1fr));
+  gap: var(--space-md);
+}
+
+.pds-provider {
+  align-content: start;
+  min-width: 0;
+}
+
+.pds-provider__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-xs) var(--space-sm);
+}
+
+.pds-provider__title-block {
+  display: grid;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+
+.pds-provider__title {
+  color: var(--text);
+  font-size: var(--text-h4);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-heading);
+}
+
+.pds-provider__meta {
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+}
+
+.pds-provider__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+}
+
+.pds-provider__url {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  overflow-wrap: anywhere;
+}
+
+.pds-provider__facts,
+.pds-model__facts {
+  display: grid;
+  gap: var(--space-2xs);
+  margin: 0;
+}
+
+.pds-provider__fact,
+.pds-model__fact {
+  display: grid;
+  grid-template-columns: minmax(0, 9ch) minmax(0, 1fr);
+  gap: var(--space-xs);
+  align-items: baseline;
+}
+
+.pds-provider__fact dt,
+.pds-model__fact dt {
+  color: var(--text-subtle);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+}
+
+.pds-provider__fact dd,
+.pds-model__fact dd {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+}
+
+.pds-provider__status {
+  min-width: 0;
+}
+
+.pds-provider__result,
+.pds-provider__result-meta {
+  margin: 0;
+}
+
+.pds-provider__result {
+  display: grid;
+  gap: var(--space-2xs);
+  padding: var(--space-sm);
+  border: var(--size-border) solid var(--border);
+  border-left: var(--size-accent-bar) solid var(--success);
+  border-radius: var(--radius-sm);
+  background: var(--success-muted);
+}
+
+.pds-provider__result-title {
+  color: var(--text);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-ui);
+}
+
+.pds-provider__result-meta {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+}
+
+.pds-provider__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2xs);
+}
+
+.pds-provider__hint {
+  color: var(--text-subtle);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+}
+
+.pds-provider__console {
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+}
+
+/* ---------------------------------------------------------------- models -- */
+
+.pds-model-group {
+  display: grid;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.pds-model-group__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-xs);
+}
+
+.pds-model-group__title {
+  color: var(--text);
+  font-size: var(--text-body);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-ui);
+}
+
+.pds-model-list {
+  display: grid;
+  gap: var(--space-xs);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pds-model {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-md);
+  min-width: 0;
+  padding: var(--space-md);
+  border: var(--size-border) solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.pds-model__main {
+  display: grid;
+  flex: 1;
+  gap: var(--space-xs);
+  min-width: var(--pds-model-min);
+}
+
+.pds-model__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2xs) var(--space-xs);
+}
+
+.pds-model__name {
+  color: var(--text);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-ui);
+}
+
+.pds-model__id {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  overflow-wrap: anywhere;
+}
+
+.pds-model__provider {
+  color: var(--text-subtle);
+  font-size: var(--text-caption);
+  line-height: var(--leading-ui);
+}
+
+.pds-model__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+}
+
+.pds-model__description {
+  max-width: 80ch;
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+}
+
+.pds-model__result {
+  margin: 0;
+}
+
+.pds-model__result-title {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-ui);
+}
+
+.pds-model__result-sample {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+}
+
+.pds-model__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2xs);
+  flex: none;
+}
+
+.pds-model__hint {
+  color: var(--text-subtle);
+  font-size: var(--text-caption);
+  line-height: var(--leading-ui);
+}
+
+/* ------------------------------------------------------------ dialog bits -- */
+
+.pds-provider__console {
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+}
+
+@media (max-width: 60rem) {
+  /*
+   * One full-width track. The auto-fit minimum above is wider than the content
+   * area at this size, which produced a horizontal scrollbar and clipped the
+   * endpoint values.
+   */
+  .pds-provider-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pds-provider__fact,
+  .pds-model__fact {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2xs);
+  }
+
+  .pds-model__main {
+    min-width: 0;
+  }
+
+  /*
+   * The action cluster is `flex: none`, so at this width its max-content width
+   * (a Test button plus the long hint sentence) pushed the row 30px past the page
+   * edge. It gets its own full-width line and wraps inside it.
+   */
+  .pds-model__actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .pds-model__hint {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .pds-model {
+    padding: var(--space-sm);
+  }
+
+  .pds-section-head__actions {
+    width: 100%;
+  }
+}

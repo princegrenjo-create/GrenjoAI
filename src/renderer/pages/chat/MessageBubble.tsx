@@ -1,0 +1,73 @@
+import { memo, type ReactElement } from 'react';
+import { Badge } from '@renderer/components/ui';
+import { Markdown } from '@renderer/components/markdown/Markdown';
+import { formatTime, formatTokenUsage } from '@renderer/lib/format';
+import type { ChatEntry } from '@renderer/lib/store';
+import { ChatErrorCard } from './ChatErrorCard';
+import { CopyButton } from './CopyButton';
+
+export interface MessageBubbleProps {
+  entry: ChatEntry;
+  showTokenUsage: boolean;
+  onRetry(): void;
+}
+
+function roleLabel(role: ChatEntry['role']): string {
+  if (role === 'user') return 'You';
+  if (role === 'system') return 'System';
+  return 'Assistant';
+}
+
+/**
+ * One message: user turns are a bubble, assistant turns are prose on the page,
+ * and a failed turn is an error card. The streaming caret is CSS-only and
+ * appended to the last rendered paragraph, so it never creates an extra block.
+ */
+function MessageBubbleComponent({ entry, showTokenUsage, onRetry }: MessageBubbleProps): ReactElement {
+  const isUser = entry.role === 'user';
+  const isError = entry.status === 'error' && entry.error !== null;
+  const streaming = entry.status === 'streaming';
+  const totalTokens = entry.usage?.totalTokens ?? 0;
+  const canCopy = !isUser && !isError && entry.content.length > 0;
+
+  return (
+    <article
+      className={['pds-message', `pds-message--${entry.role}`, streaming ? 'pds-message--streaming' : '']
+        .filter(Boolean)
+        .join(' ')}
+      data-status={entry.status}
+    >
+      <header className="pds-message__meta">
+        <span className="pds-message__role">{roleLabel(entry.role)}</span>
+        <time className="pds-message__time" dateTime={entry.createdAt}>
+          {formatTime(entry.createdAt)}
+        </time>
+        {entry.status === 'stopped' ? <Badge tone="warning">Stopped</Badge> : null}
+        {showTokenUsage && totalTokens > 0 ? (
+          <Badge tone="neutral">{formatTokenUsage(totalTokens)}</Badge>
+        ) : null}
+      </header>
+
+      <div className={isUser ? 'pds-message__body pds-message__body--user' : 'pds-message__body'}>
+        {isError && entry.error ? (
+          <ChatErrorCard error={entry.error} onRetry={onRetry} />
+        ) : isUser ? (
+          <p className="pds-message__text">{entry.content}</p>
+        ) : (
+          <Markdown content={entry.content} />
+        )}
+        {streaming && entry.content.length === 0 ? (
+          <span className="pds-caret pds-caret--alone" aria-hidden="true" />
+        ) : null}
+      </div>
+
+      {canCopy ? (
+        <div className="pds-message__actions">
+          <CopyButton text={entry.content} label="Copy message" />
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+export const MessageBubble = memo(MessageBubbleComponent);

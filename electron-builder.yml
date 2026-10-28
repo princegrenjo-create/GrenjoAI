@@ -1,0 +1,50 @@
+appId: com.personal.aidesk
+productName: Personal AI Desk
+copyright: Personal use build
+
+directories:
+  output: release
+  buildResources: build
+
+# Only the compiled bundles and the manifest ship. Source, tests and the agent
+# run sink never enter the installer.
+files:
+  - dist/**/*
+  - package.json
+  - '!**/*.map'
+  - '!.work/**'
+  - '!release/**'
+  - '!tests/**'
+  - '!src/**'
+
+asar: true
+asarUnpack: []
+
+# Flips the Electron fuses on the packaged binary before the installer is built.
+afterPack: scripts/after-pack.cjs
+
+# User data lives in %APPDATA%\Personal AI Desk (Electron's userData), which is
+# outside the install directory, so upgrades and uninstalls never touch chats or
+# settings. `deleteAppDataOnUninstall` stays false for the same reason.
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  artifactName: ${productName}-Setup-${version}-${arch}.${ext}
+  requestedExecutionLevel: asInvoker
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Personal AI Desk
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
+  differentialPackage: true
+
+publish: null

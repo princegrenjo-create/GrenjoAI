@@ -1,0 +1,180 @@
+/*
+ * Cloud Sync screen: the always-on key policy note, the configuration and account
+ * cards, the status panel and the conflict list.
+ *
+ * Every length and colour resolves to a token in tokens.css; the only raw lengths
+ * are the media-query breakpoints documented here.
+ *
+ *   ≤ 60rem  two-column grids stack and the conflict rows lose their right edge
+ */
+
+.pds-sync {
+  display: grid;
+}
+
+.pds-sync__policy {
+  padding: var(--space-sm) var(--space-md);
+  border: var(--size-border) solid var(--border);
+  border-left: var(--size-accent-bar) solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--accent-muted);
+  color: var(--text);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+}
+
+.pds-sync__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-card-min), 1fr));
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.pds-sync__text {
+  max-width: 78ch;
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+}
+
+.pds-sync__text strong {
+  color: var(--text);
+  font-weight: var(--weight-semibold);
+}
+
+.pds-sync__list {
+  display: grid;
+  gap: var(--space-2xs);
+  margin: 0;
+  padding-left: var(--space-md);
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+  list-style: disc;
+}
+
+.pds-sync__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.pds-sync__actions-note {
+  color: var(--danger);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+}
+
+.pds-sync__advanced {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-card-min), 1fr));
+  gap: var(--space-sm);
+  align-items: start;
+  padding-top: var(--space-sm);
+  border-top: var(--size-border) solid var(--border);
+}
+
+.pds-sync__account {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+/* ------------------------------------------------------------- status -- */
+
+.pds-sync__status {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-card-min), 1fr));
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pds-sync__status-item {
+  display: grid;
+  gap: var(--space-2xs);
+  padding: var(--space-sm);
+  border: var(--size-border) solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.pds-sync__status-label {
+  color: var(--text-subtle);
+  font-size: var(--text-caption);
+  line-height: var(--leading-ui);
+}
+
+.pds-sync__status-value {
+  color: var(--text);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-ui);
+}
+
+/* ---------------------------------------------------------- conflicts -- */
+
+.pds-sync__conflicts {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pds-sync__conflict {
+  display: grid;
+  gap: var(--space-2xs);
+  padding: var(--space-sm) var(--space-md);
+  border: var(--size-border) solid var(--border);
+  border-left: var(--size-accent-bar) solid var(--warning);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.pds-sync__conflict-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2xs) var(--space-xs);
+}
+
+.pds-sync__conflict-entity {
+  color: var(--text);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-ui);
+  text-transform: capitalize;
+}
+
+.pds-sync__conflict-id {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  overflow-wrap: anywhere;
+}
+
+.pds-sync__conflict-summary {
+  color: var(--text);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+}
+
+.pds-sync__conflict-meta {
+  color: var(--text-subtle);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+}
+
+@media (max-width: 60rem) {
+  .pds-sync__grid,
+  .pds-sync__advanced,
+  .pds-sync__status {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

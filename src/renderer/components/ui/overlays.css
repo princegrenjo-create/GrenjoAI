@@ -1,0 +1,152 @@
+/*
+ * Overlay styles: the modal dialog and the toast host. Overlays are the only
+ * surfaces that carry elevation, and both keep their own scroll containers.
+ */
+
+/* ---------------------------------------------------------------- dialog -- */
+
+.pds-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  display: grid;
+  place-items: center;
+  padding: var(--space-lg);
+  background: var(--overlay-scrim);
+  animation: pds-fade-in var(--duration-base) var(--ease-standard);
+}
+
+.pds-dialog {
+  display: grid;
+  gap: var(--space-md);
+  width: 100%;
+  max-width: var(--size-dialog-md);
+  max-height: calc(100vh - (var(--space-2xl) * 2));
+  padding: var(--space-lg);
+  overflow: hidden;
+  border: var(--size-border) solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  outline: none;
+}
+
+.pds-dialog--sm {
+  max-width: var(--size-dialog-sm);
+}
+
+.pds-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.pds-dialog__title {
+  color: var(--text);
+  font-size: var(--text-h4);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-heading);
+}
+
+.pds-dialog__description {
+  max-width: var(--size-prose);
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+}
+
+.pds-dialog__body {
+  display: grid;
+  gap: var(--space-sm);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.pds-dialog__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-xs);
+  padding-top: var(--space-md);
+  border-top: var(--size-border) solid var(--border);
+}
+
+/* ----------------------------------------------------------------- toast -- */
+
+.pds-toast-host {
+  position: fixed;
+  right: var(--space-lg);
+  bottom: var(--space-lg);
+  z-index: var(--z-toast);
+  display: grid;
+  gap: var(--space-xs);
+  width: min(var(--size-toast), calc(100vw - (var(--space-2xl) * 2)));
+  pointer-events: none;
+}
+
+.pds-toast {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: var(--size-border) solid var(--border-strong);
+  border-left: var(--size-accent-bar) solid var(--info);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  box-shadow: var(--shadow-md);
+  animation: pds-toast-in var(--duration-base) var(--ease-standard);
+  pointer-events: auto;
+}
+
+.pds-toast--success {
+  border-left-color: var(--success);
+}
+
+.pds-toast--warning {
+  border-left-color: var(--warning);
+}
+
+.pds-toast--danger {
+  border-left-color: var(--danger);
+}
+
+.pds-toast__icon {
+  display: grid;
+  place-items: center;
+  color: var(--info);
+}
+
+.pds-toast--success .pds-toast__icon {
+  color: var(--success);
+}
+
+.pds-toast--warning .pds-toast__icon {
+  color: var(--warning);
+}
+
+.pds-toast--danger .pds-toast__icon {
+  color: var(--danger);
+}
+
+.pds-toast__text {
+  display: grid;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+
+.pds-toast__title {
+  color: var(--text);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-ui);
+}
+
+.pds-toast__description {
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+}

@@ -1,0 +1,301 @@
+/*
+ * Markdown rendering inside a message. Prose measure is capped, headings stay
+ * inside the four type sizes the chat screen uses, and code gets a real block
+ * with a header and a copy action instead of the browser's default <pre>.
+ */
+
+.pds-markdown {
+  min-width: 0;
+  color: var(--text);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+}
+
+.pds-markdown > * + * {
+  margin-top: var(--space-sm);
+}
+
+.pds-markdown > *:first-child {
+  margin-top: 0;
+}
+
+.pds-markdown p,
+.pds-markdown li {
+  max-width: var(--size-prose);
+}
+
+.pds-markdown h1,
+.pds-markdown h2,
+.pds-markdown h3,
+.pds-markdown h4 {
+  color: var(--text);
+  font-size: var(--text-body);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-heading);
+}
+
+.pds-markdown h1 + *,
+.pds-markdown h2 + *,
+.pds-markdown h3 + *,
+.pds-markdown h4 + * {
+  margin-top: var(--space-xs);
+}
+
+.pds-markdown strong {
+  font-weight: var(--weight-semibold);
+}
+
+.pds-markdown em {
+  font-style: italic;
+}
+
+.pds-markdown ul,
+.pds-markdown ol {
+  padding-left: var(--space-lg);
+  list-style: disc;
+}
+
+.pds-markdown ol {
+  list-style: decimal;
+}
+
+.pds-markdown li + li {
+  margin-top: var(--space-2xs);
+}
+
+.pds-markdown li::marker {
+  color: var(--text-subtle);
+}
+
+.pds-markdown blockquote {
+  padding-left: var(--space-md);
+  border-left: var(--size-accent-bar) solid var(--accent-border);
+  color: var(--text-muted);
+}
+
+.pds-markdown hr {
+  height: 0;
+  border: 0;
+  border-top: var(--size-border) solid var(--border);
+}
+
+.pds-markdown a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: var(--accent-border);
+  text-underline-offset: var(--underline-offset);
+}
+
+.pds-markdown a:hover {
+  text-decoration-color: var(--accent);
+}
+
+.pds-md-external {
+  display: inline-block;
+  width: var(--size-icon-xs);
+  height: var(--size-icon-xs);
+  margin-left: var(--space-2xs);
+  vertical-align: baseline;
+  color: var(--text-muted);
+}
+
+.pds-md-blocked {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--danger);
+  text-underline-offset: var(--underline-offset);
+}
+
+.pds-md-blocked__flag {
+  color: var(--text-subtle);
+  font-size: var(--text-caption);
+}
+
+.pds-md-image-blocked {
+  display: block;
+  padding: var(--space-xs) var(--space-sm);
+  border: var(--size-border) dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-subtle);
+  font-size: var(--text-caption);
+}
+
+/* Inline code chip. */
+.pds-markdown :not(pre) > code {
+  padding: 0 var(--space-2xs);
+  border: var(--size-border) solid var(--code-border);
+  border-radius: var(--radius-sm);
+  background: var(--code-bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--text-ui);
+}
+
+/* Tables (GFM). */
+.pds-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+}
+
+.pds-markdown th,
+.pds-markdown td {
+  padding: var(--space-xs) var(--space-sm);
+  border: var(--size-border) solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.pds-markdown th {
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: var(--weight-semibold);
+}
+
+.pds-markdown tbody tr:nth-child(even) {
+  background: var(--table-stripe);
+}
+
+.pds-markdown input[type='checkbox'] {
+  margin-right: var(--space-2xs);
+  accent-color: var(--accent);
+}
+
+/* ------------------------------------------------------------------ code -- */
+
+.pds-code {
+  border: var(--size-border) solid var(--code-border);
+  border-radius: var(--radius-md);
+  background: var(--code-bg);
+  overflow: hidden;
+}
+
+.pds-code__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs);
+  min-height: var(--size-code-header);
+  padding: 0 var(--space-sm);
+  border-bottom: var(--size-border) solid var(--code-border);
+  background: var(--surface-2);
+}
+
+.pds-code__language {
+  color: var(--text-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  text-transform: lowercase;
+}
+
+.pds-code__copy {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: var(--space-2xs) var(--space-xs);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.pds-code__copy:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.pds-code__copy:active {
+  background: var(--surface-3);
+}
+
+.pds-code__copy-icon {
+  width: var(--size-icon-sm);
+  height: var(--size-icon-sm);
+}
+
+.pds-code__pre {
+  margin: 0;
+  padding: var(--space-sm) var(--space-md);
+  overflow-x: auto;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+  tab-size: 2;
+}
+
+.pds-code__pre code {
+  font-family: inherit;
+  font-size: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+/* ---------------------------------------------------------- highlighting -- */
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--syntax-comment);
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-meta .hljs-keyword {
+  color: var(--syntax-keyword);
+}
+
+.hljs-string,
+.hljs-attr-value,
+.hljs-template-tag,
+.hljs-regexp {
+  color: var(--syntax-string);
+}
+
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-meta {
+  color: var(--syntax-number);
+}
+
+.hljs-title,
+.hljs-title.function_,
+.hljs-section,
+.hljs-selector-id {
+  color: var(--syntax-function);
+}
+
+.hljs-variable,
+.hljs-attr,
+.hljs-attribute,
+.hljs-selector-class,
+.hljs-template-variable {
+  color: var(--syntax-variable);
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: var(--weight-semibold);
+}
+
+.hljs-addition {
+  color: var(--success);
+}
+
+.hljs-deletion {
+  color: var(--danger);
+}

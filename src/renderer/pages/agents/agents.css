@@ -1,0 +1,232 @@
+/*
+ * Agents screen: the saved-agent list on the left and the editor on the right.
+ *
+ * Every length and colour resolves to a token in tokens.css; the only raw lengths
+ * are the media-query breakpoints documented here.
+ *
+ *   ≤ 60rem  the list moves above the editor and both become full width
+ */
+
+.pds-agents__layout {
+  display: grid;
+  grid-template-columns: var(--size-conversations) minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+  min-width: 0;
+}
+
+/* ----------------------------------------------------------------- list -- */
+
+.pds-agents__list {
+  display: grid;
+  gap: var(--space-xs);
+  align-content: start;
+  min-width: 0;
+  padding: var(--space-sm);
+  border: var(--size-border) solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.pds-agents__list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs);
+  padding: var(--space-2xs) var(--space-2xs) 0;
+}
+
+.pds-agents__list-title {
+  color: var(--text);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-ui);
+}
+
+.pds-agents__list-empty {
+  padding: var(--space-sm);
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+}
+
+.pds-agents__rows {
+  display: grid;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+
+.pds-agents__row {
+  display: grid;
+  gap: var(--space-2xs);
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  border: var(--size-border) solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  text-align: left;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.pds-agents__row:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.pds-agents__row:active {
+  background: var(--surface-3);
+  transform: translateY(var(--press-shift));
+}
+
+.pds-agents__row[aria-current='true'] {
+  border-color: var(--accent-border);
+  background: var(--accent-muted);
+  color: var(--text);
+}
+
+.pds-agents__row-name {
+  overflow: hidden;
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pds-agents__row-meta,
+.pds-agents__row-model {
+  overflow: hidden;
+  color: var(--text-subtle);
+  font-size: var(--text-caption);
+  line-height: var(--leading-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pds-agents__row-model {
+  font-family: var(--font-mono);
+}
+
+/* --------------------------------------------------------------- editor -- */
+
+.pds-agents__editor {
+  min-width: 0;
+}
+
+.pds-agent-editor {
+  display: grid;
+  gap: var(--space-lg);
+  min-width: 0;
+  padding: var(--space-lg);
+  border: var(--size-border) solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.pds-agent-editor__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.pds-agent-editor__title-block {
+  display: grid;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+
+.pds-agent-editor__title {
+  color: var(--text);
+  font-size: var(--text-h4);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-heading);
+}
+
+.pds-agent-editor__meta {
+  color: var(--text-subtle);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+}
+
+.pds-agent-editor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.pds-agent-editor__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-card-min), 1fr));
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.pds-agent-editor__suppressed {
+  display: grid;
+  gap: var(--space-2xs);
+  padding: var(--space-sm);
+  border: var(--size-border) solid var(--border);
+  border-left: var(--size-accent-bar) solid var(--warning);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.pds-agent-editor__suppressed-title {
+  color: var(--text);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-ui);
+}
+
+.pds-agent-editor__suppressed-list {
+  display: grid;
+  gap: var(--space-2xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+}
+
+.pds-agent-editor__suppressed-key {
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+.pds-agent-editor__danger {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding-top: var(--space-md);
+  border-top: var(--size-border) solid var(--border);
+}
+
+.pds-agent-editor__danger-text {
+  max-width: 62ch;
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+}
+
+@media (max-width: 60rem) {
+  .pds-agents__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pds-agent-editor {
+    padding: var(--space-md);
+  }
+
+  .pds-agent-editor__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,0 +1,248 @@
+/*
+ * Personal AI Desk — design tokens.
+ *
+ * This is the single source of every visual value in the renderer. Component
+ * CSS is not allowed to carry a raw colour, a raw length or a raw duration:
+ * if a value is needed and is not here, it is added here first.
+ *
+ * Palette: warm neutrals tinted toward the accent hue (amber, hue ~38). The
+ * dark theme is re-derived rather than inverted — surfaces get lighter as they
+ * come forward, text stops at #ebe7e1 instead of pure white, borders are an
+ * alpha of the warm foreground, and elevation is a warm-tinted shadow.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* ------------------------------------------------------------ families -- */
+  --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Code", "Cascadia Mono", Consolas, ui-monospace, monospace;
+
+  /* --------------------------------------------------------- type scale --- */
+  /* 1.25 step: 12 / 14 / 16 / 20 / 25 / 31. Body 16, UI 14, caption 12. */
+  --text-caption: 12px;
+  --text-ui: 14px;
+  --text-body: 16px;
+  --text-h4: 20px;
+  --text-h3: 25px;
+  --text-h2: 31px;
+
+  --leading-body: 1.5;
+  --leading-ui: 1.25;
+  --leading-heading: 1.15;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* ------------------------------------------------------------ spacing --- */
+  /* 4px base: 4 8 12 16 24 32 48 64 96. */
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+  --space-4xl: 96px;
+
+  /* --------------------------------------------------------------- sizes -- */
+  --size-border: 1px;
+  --size-border-strong: 2px;
+  --size-focus-ring: 2px;
+  --size-focus-offset: 2px;
+  --size-icon-xs: 14px;
+  --size-icon-sm: 16px;
+  --size-icon: 18px;
+  --size-icon-lg: 22px;
+  --size-control-sm: 30px;
+  --size-control: 36px;
+  --size-control-lg: 44px;
+  --size-textarea: 96px;
+  --size-textarea-max: 220px;
+  --size-composer-min: 52px;
+  --size-select-popup: 240px;
+  --size-selector: 200px;
+  --size-value: 48px;
+  --size-switch-inset: 3px;
+  --size-skeleton-line: 12px;
+  --size-empty-icon: 48px;
+  --size-accent-bar: 3px;
+  --size-toast-icon: 20px;
+  --size-jump: 32px;
+  --size-avatar: 28px;
+  --size-rail: 208px;
+  --size-rail-collapsed: 64px;
+  --size-conversations: 264px;
+  --size-content: 1200px;
+  --size-chat-column: 760px;
+  --size-empty-state: 420px;
+  --size-dialog-sm: 400px;
+  --size-dialog-md: 520px;
+  --size-toast: 380px;
+  --size-code-header: 36px;
+  --size-card-min: 240px;
+  --size-scrollbar: 10px;
+  --size-caret: 8px;
+  --size-caret-wide: 2px;
+  --size-caret-height: 1em;
+  --size-switch-width: 38px;
+  --size-switch-height: 22px;
+  --size-switch-thumb: 16px;
+  --size-switch-travel: 14px;
+  --size-range-track: 4px;
+  --size-range-thumb: 16px;
+  --size-spinner: 16px;
+  --size-tab-underline: 2px;
+  --size-message-max: 80%;
+
+  /* --------------------------------------------------------------- radii -- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 999px;
+
+  /* -------------------------------------------------------------- motion -- */
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 260ms;
+  --duration-spin: 720ms;
+  --duration-shimmer: 1600ms;
+  --duration-caret: 1000ms;
+  --duration-toast: 6000ms;
+  /* The reduced-motion switch: a duration that finishes immediately. */
+  --duration-none: 0.01ms;
+  --tracking-heading: -0.01em;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --press-shift: 1px;
+  --opacity-disabled: 0.45;
+  --opacity-muted: 0.72;
+  --underline-offset: 0.2em;
+
+  /* ----------------------------------------------------------- layering --- */
+  --z-sticky: 10;
+  --z-overlay: 100;
+  --z-dialog: 110;
+  --z-toast: 120;
+  --z-tooltip: 130;
+
+  /* ------------------------------------------------------- colour roles --- */
+  /* Neutrals carry a small amount of the accent hue so nothing reads as grey. */
+  --bg: #0d0b09;
+  --surface: #14110e;
+  --surface-2: #1b1713;
+  --surface-3: #231d18;
+  --surface-inset: #0a0908;
+
+  --border: rgb(247 236 220 / 0.12);
+  --border-strong: rgb(247 236 220 / 0.22);
+
+  --text: #ebe7e1;
+  --text-muted: #a9a29a;
+  --text-subtle: #8a837a;
+
+  --accent: #e9a94b;
+  --accent-strong: #f3bd70;
+  --accent-contrast: #1a1206;
+  --accent-muted: rgb(233 169 75 / 0.16);
+  --accent-border: rgb(233 169 75 / 0.38);
+
+  --success: #74c58a;
+  --success-strong: #8ad69e;
+  --success-muted: rgb(116 197 138 / 0.16);
+  --warning: #e5b95d;
+  --warning-muted: rgb(229 185 93 / 0.16);
+  --danger: #e8837a;
+  --danger-strong: #f09a92;
+  --danger-muted: rgb(232 131 122 / 0.16);
+  --info: #7fb1e0;
+  --info-muted: rgb(127 177 224 / 0.16);
+
+  --selection: rgb(233 169 75 / 0.28);
+  --scrollbar-thumb: rgb(247 236 220 / 0.18);
+  --scrollbar-thumb-hover: rgb(247 236 220 / 0.32);
+  --overlay-scrim: rgb(6 4 2 / 0.62);
+
+  --skeleton-base: rgb(247 236 220 / 0.06);
+  --skeleton-sheen: rgb(247 236 220 / 0.13);
+
+  --code-bg: #0a0908;
+  --code-border: rgb(247 236 220 / 0.1);
+  --table-stripe: rgb(247 236 220 / 0.04);
+
+  /* Syntax roles — six, matched to the warm palette. */
+  --syntax-comment: #7f776d;
+  --syntax-keyword: #dd9a63;
+  --syntax-string: #9dc080;
+  --syntax-number: #dcbf85;
+  --syntax-function: #82b4d9;
+  --syntax-variable: #c9a8bd;
+
+  /* ---------------------------------------------------------- elevation --- */
+  /* Tinted with the warm background hue, never pure black. */
+  --shadow-sm: 0 1px 2px rgb(12 8 4 / 0.35);
+  --shadow-md: 0 4px 12px rgb(12 8 4 / 0.45);
+  --shadow-lg: 0 16px 40px rgb(12 8 4 / 0.55);
+}
+
+/*
+ * Light theme. Re-derived, not inverted: the paper is warm, the accent darkens
+ * so it keeps 4.5:1 against the surface, and borders are a warm ink alpha.
+ */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f5f1ea;
+  --surface: #fffdf9;
+  --surface-2: #f1ece3;
+  --surface-3: #e7e0d4;
+  --surface-inset: #faf6ef;
+
+  --border: rgb(66 50 28 / 0.14);
+  --border-strong: rgb(66 50 28 / 0.26);
+
+  --text: #1d1813;
+  --text-muted: #5a5248;
+  --text-subtle: #6f665a;
+
+  --accent: #9d5f16;
+  --accent-strong: #7d4a0f;
+  --accent-contrast: #fffdf7;
+  --accent-muted: rgb(157 95 22 / 0.12);
+  --accent-border: rgb(157 95 22 / 0.32);
+
+  --success: #2f6b3d;
+  --success-strong: #245531;
+  --success-muted: rgb(47 107 61 / 0.12);
+  --warning: #8a5a12;
+  --warning-muted: rgb(138 90 18 / 0.12);
+  --danger: #a4302a;
+  --danger-strong: #8a241f;
+  --danger-muted: rgb(164 48 42 / 0.1);
+  --info: #28567d;
+  --info-muted: rgb(40 86 125 / 0.1);
+
+  --selection: rgb(157 95 22 / 0.2);
+  --scrollbar-thumb: rgb(66 50 28 / 0.24);
+  --scrollbar-thumb-hover: rgb(66 50 28 / 0.4);
+  --overlay-scrim: rgb(38 28 14 / 0.42);
+
+  --skeleton-base: rgb(66 50 28 / 0.07);
+  --skeleton-sheen: rgb(66 50 28 / 0.14);
+
+  --code-bg: #f6f1e8;
+  --code-border: rgb(66 50 28 / 0.12);
+  --table-stripe: rgb(66 50 28 / 0.04);
+
+  --syntax-comment: #75695a;
+  --syntax-keyword: #a5501f;
+  --syntax-string: #3f6b2d;
+  --syntax-number: #8a5a12;
+  --syntax-function: #28567d;
+  --syntax-variable: #6c3f70;
+
+  --shadow-sm: 0 1px 2px rgb(66 50 28 / 0.1);
+  --shadow-md: 0 4px 12px rgb(66 50 28 / 0.14);
+  --shadow-lg: 0 16px 40px rgb(66 50 28 / 0.18);
+}

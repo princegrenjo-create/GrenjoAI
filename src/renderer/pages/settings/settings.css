@@ -1,0 +1,263 @@
+/*
+ * Settings screen: a stack of section cards, the advanced configuration table and
+ * the export/import panels.
+ *
+ * Every length and colour resolves to a token in tokens.css; the only raw lengths
+ * are the media-query breakpoints documented here.
+ *
+ *   ≤ 60rem  the advanced table scrolls horizontally and two-column grids stack
+ */
+
+.pds-settings {
+  display: grid;
+}
+
+.pds-settings__grid {
+  display: grid;
+  /* Capped tracks: at full width a lone control would otherwise stretch across the
+     whole card, which reads as a mistake rather than as a form. */
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-card-min), var(--size-dialog-md)));
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.pds-settings__note {
+  max-width: 78ch;
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+}
+
+.pds-settings__note strong {
+  color: var(--text);
+  font-weight: var(--weight-semibold);
+}
+
+.pds-settings__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+/* ----------------------------------------------------------- facts lists -- */
+
+.pds-settings__facts {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0;
+}
+
+.pds-settings__fact {
+  display: grid;
+  grid-template-columns: minmax(0, 12ch) minmax(0, 1fr);
+  gap: var(--space-sm);
+  align-items: baseline;
+}
+
+.pds-settings__fact dt {
+  color: var(--text-subtle);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+}
+
+.pds-settings__fact dd {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+}
+
+.pds-settings__path {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+}
+
+.pds-settings__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+}
+
+/* ------------------------------------------------------- export / import -- */
+
+.pds-settings__export {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.pds-settings__json {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+}
+
+.pds-settings__import {
+  display: grid;
+  gap: var(--space-sm);
+  padding-top: var(--space-md);
+  border-top: var(--size-border) solid var(--border);
+}
+
+.pds-settings__import-result {
+  display: grid;
+  gap: var(--space-2xs);
+  padding: var(--space-sm) var(--space-md);
+  border: var(--size-border) solid var(--border);
+  border-left: var(--size-accent-bar) solid var(--success);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.pds-settings__import-title {
+  color: var(--text);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-ui);
+}
+
+.pds-settings__import-line {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+}
+
+.pds-settings__import-tag {
+  color: var(--text);
+  font-weight: var(--weight-medium);
+}
+
+.pds-settings__warnings {
+  display: grid;
+  gap: var(--space-2xs);
+  margin: 0;
+  padding-left: var(--space-md);
+  color: var(--warning);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+  list-style: disc;
+}
+
+/* -------------------------------------------------------- advanced table -- */
+
+.pds-advanced__scroll {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.pds-advanced {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.pds-advanced th,
+.pds-advanced td {
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: var(--size-border) solid var(--border);
+  vertical-align: middle;
+}
+
+.pds-advanced thead th {
+  color: var(--text-subtle);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.pds-advanced tbody tr:hover {
+  background: var(--table-stripe);
+}
+
+.pds-advanced__setting {
+  display: grid;
+  gap: var(--space-2xs);
+  min-width: var(--size-selector);
+  font-weight: var(--weight-regular);
+}
+
+.pds-advanced__label {
+  color: var(--text);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-ui);
+}
+
+.pds-advanced__key {
+  color: var(--text-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  line-height: var(--leading-ui);
+  overflow-wrap: anywhere;
+}
+
+.pds-advanced__description {
+  max-width: 52ch;
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+}
+
+.pds-advanced__type,
+.pds-advanced__range,
+.pds-advanced__default {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+  white-space: nowrap;
+}
+
+.pds-advanced__control {
+  min-width: var(--size-selector);
+}
+
+.pds-advanced__control .pds-field {
+  gap: 0;
+}
+
+/*
+ * The row header already names the setting. The switch keeps its real <label> for
+ * assistive technology; it is hidden visually the same way `.pds-sr-only` hides a
+ * label, because a second visible copy of the name in the value column is noise.
+ */
+.pds-advanced__control .pds-switch-field__label {
+  position: absolute;
+  width: var(--size-border);
+  height: var(--size-border);
+  margin: calc(var(--size-border) * -1);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.pds-advanced__control .pds-switch-field {
+  padding: 0;
+}
+
+.pds-advanced__reset {
+  width: var(--size-value);
+  text-align: right;
+}
+
+@media (max-width: 60rem) {
+  .pds-settings__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pds-settings__fact {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2xs);
+  }
+
+  .pds-advanced thead {
+    display: none;
+  }
+
+  .pds-advanced__type,
+  .pds-advanced__range {
+    display: none;
+  }
+}
