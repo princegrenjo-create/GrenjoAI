@@ -603,7 +603,7 @@ export function SettingsPage(): ReactElement {
                   className="pds-settings__json"
                   rows={6}
                   value={importJson}
-                  placeholder='Paste a document that starts with {"app": "personal-ai-desk"…}'
+                  placeholder='Paste a document that starts with {"app": "grenjo-ai-tool"…}'
                   onChange={(event) => {
                     setImportJson(event.target.value);
                     setImportError(null);

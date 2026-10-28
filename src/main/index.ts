@@ -32,6 +32,7 @@ import { createChatService } from './chat/service';
 import { createRegistry } from './providers/registry';
 import { createProviderTransport } from './providers/transport';
 import { registerIpcHandlers, sendToWindow } from './ipc/register';
+import { resolveUserDataDir } from './profile';
 import {
   createCredentialSessionStorage,
   createSupabaseClientFactory,
@@ -45,12 +46,17 @@ import { validateEndpointUrl } from '@shared/url-policy';
 const isDev = !app.isPackaged;
 const DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL ?? null;
 
-/** Product folder name; kept stable so dev and the installed app share a profile. */
-const USER_DATA_FOLDER = 'Personal AI Desk';
-
 let mainWindow: BrowserWindow | null = null;
 let logger: Logger | null = null;
 let shutdown: (() => void) | null = null;
+
+/**
+ * Profile selection runs before anything that can create the default profile
+ * folder (the single-instance lock does exactly that), so the migration sees the
+ * real state of the disk.
+ */
+const profileStartup = resolveUserDataDir(app.getPath('appData'));
+app.setPath('userData', profileStartup.dir);
 
 // A single instance keeps one writer on the SQLite file and one credential file.
 if (!app.requestSingleInstanceLock()) {
@@ -64,11 +70,7 @@ if (!app.requestSingleInstanceLock()) {
 
   // Must precede `ready`: sandbox every renderer, including any future one.
   app.enableSandbox();
-  app.setAppUserModelId('com.personal.aidesk');
-
-  // Pin the profile outside the install directory so an upgrade or an uninstall
-  // never deletes the owner's chats, settings or agents.
-  app.setPath('userData', path.join(app.getPath('appData'), USER_DATA_FOLDER));
+  app.setAppUserModelId('com.grenjo.aitool');
 
   app.whenReady().then(bootstrap).catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
@@ -114,14 +116,30 @@ async function bootstrap(): Promise<void> {
     echo: isDev,
   });
   const log = logger;
-  log.info('Starting Personal AI Desk', {
+  log.info('Starting Grenjo AI Tool', {
     version: app.getVersion(),
     electron: process.versions.electron,
     node: process.versions.node,
     chrome: process.versions.chrome,
     packaged: app.isPackaged,
     userData,
+    profile: profileStartup.migration,
   });
+  if (profileStartup.migration === 'renamed') {
+    log.info('Renamed the profile folder from the previous product name', { userData });
+  }
+  if (profileStartup.migration === 'copied') {
+    log.info(
+      'Copied the previous profile into the new folder; the old folder was left untouched',
+      { userData },
+    );
+  }
+  if (profileStartup.migration === 'kept-legacy') {
+    log.warn(
+      'Could not migrate the previous profile folder (in use?); continuing with it so no data is lost',
+      { userData },
+    );
+  }
 
   // --- database -----------------------------------------------------------
   const db = openDatabase(paths.database, { logger: log.child('db') });
@@ -292,7 +310,7 @@ async function bootstrap(): Promise<void> {
   });
 
   const appInfo = (): AppInfo => ({
-    name: 'Personal AI Desk',
+    name: 'Grenjo AI Tool',
     version: app.getVersion(),
     electronVersion: process.versions.electron,
     nodeVersion: process.versions.node,

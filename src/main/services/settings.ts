@@ -115,7 +115,7 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
         }));
 
       const document: ConfigExport = {
-        app: 'personal-ai-desk',
+        app: 'grenjo-ai-tool',
         exportedAt: new Date().toISOString(),
         settings,
         providers,
@@ -150,9 +150,10 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
       } catch {
         throw new AppError(appError('validation', 'That file is not valid JSON.'));
       }
-      if (!isRecord(parsed) || parsed.app !== 'personal-ai-desk') {
+      // Accept the pre-rename marker too, so an older export still imports.
+      if (!isRecord(parsed) || (parsed.app !== 'grenjo-ai-tool' && parsed.app !== 'personal-ai-desk')) {
         throw new AppError(
-          appError('validation', 'That is not a Personal AI Desk configuration export.'),
+          appError('validation', 'That is not a Grenjo AI Tool configuration export.'),
         );
       }
 

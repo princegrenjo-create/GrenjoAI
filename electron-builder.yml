@@ -1,5 +1,5 @@
-appId: com.personal.aidesk
-productName: Personal AI Desk
+appId: com.grenjo.aitool
+productName: Grenjo AI Tool
 copyright: Personal use build
 
 directories:
@@ -42,7 +42,7 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: Personal AI Desk
+  shortcutName: Grenjo AI Tool
   deleteAppDataOnUninstall: false
   runAfterFinish: true
   differentialPackage: true

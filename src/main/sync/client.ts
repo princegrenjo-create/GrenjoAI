@@ -235,7 +235,7 @@ export function createSupabaseClientFactory(deps: SupabaseClientFactoryDeps): Sy
         detectSessionInUrl: false,
       },
       global: {
-        headers: { 'x-application-name': 'personal-ai-desk' },
+        headers: { 'x-application-name': 'grenjo-ai-tool' },
       },
     });
     return createCloudClient(supabase);

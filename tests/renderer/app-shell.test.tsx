@@ -41,7 +41,7 @@ describe('App shell', () => {
 
     const heading = await screen.findByRole('heading', { level: 1, name: 'Settings' });
     await waitFor(() => expect(heading).toHaveFocus());
-    expect(document.title).toBe('Settings · Personal AI Desk');
+    expect(document.title).toBe('Settings · Grenjo AI Tool');
     expect(window.location.hash).toBe('#/settings');
     expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute(
       'aria-current',
@@ -58,7 +58,7 @@ describe('App shell', () => {
       await user.click(screen.getByRole('link', { name: label }));
       const heading = await screen.findByRole('heading', { level: 1, name: label });
       await waitFor(() => expect(heading).toHaveFocus());
-      expect(document.title).toBe(`${label} · Personal AI Desk`);
+      expect(document.title).toBe(`${label} · Grenjo AI Tool`);
     }
   });
 

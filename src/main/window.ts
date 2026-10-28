@@ -30,7 +30,7 @@ export function createMainWindow(options: CreateWindowOptions): BrowserWindow {
     show: false,
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#0e0e11' : '#f7f7f8',
     autoHideMenuBar: true,
-    title: 'Personal AI Desk',
+    title: 'Grenjo AI Tool',
     webPreferences: {
       preload: preloadPath,
       // The four settings that matter. Do not relax one without an ADR.

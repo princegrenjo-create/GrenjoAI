@@ -29,7 +29,7 @@ export function getApi(): DesktopApi {
   const candidate: DesktopApi | undefined =
     typeof window === 'undefined' ? undefined : window.api;
   if (!candidate) {
-    throw new Error('The desktop bridge is unavailable. Restart Personal AI Desk.');
+    throw new Error('The desktop bridge is unavailable. Restart Grenjo AI Tool.');
   }
   return candidate;
 }

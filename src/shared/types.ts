@@ -494,8 +494,15 @@ export interface AppPaths {
   credentials: string;
 }
 
+/**
+ * Export format marker. `grenjo-ai-tool` is what this build writes; the previous
+ * marker is still accepted on import so a configuration exported before the
+ * rename stays importable.
+ */
+export type ConfigExportMarker = 'grenjo-ai-tool' | 'personal-ai-desk';
+
 export interface ConfigExport {
-  app: 'personal-ai-desk';
+  app: ConfigExportMarker;
   exportedAt: string;
   settings: AppSettings;
   providers: Array<Omit<ProviderConfig, 'hasKey' | 'keyFingerprint' | 'keyUpdatedAt'>>;

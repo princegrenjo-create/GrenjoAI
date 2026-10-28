@@ -35,7 +35,7 @@ export function AppNav({ route, onNavigate }: AppNavProps): ReactElement {
         <span className="pds-rail__mark" aria-hidden="true">
           <SparkIcon />
         </span>
-        <span className="pds-rail__name">Personal AI Desk</span>
+        <span className="pds-rail__name">Grenjo AI Tool</span>
       </div>
 
       <ul className="pds-nav">

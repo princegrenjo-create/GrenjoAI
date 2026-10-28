@@ -105,11 +105,22 @@ describe('settings service', () => {
     expect(result.warnings.join(' ')).toMatch(/credentials are never imported/i);
   });
 
-  it('rejects a document that is not a Personal AI Desk export', async () => {
+  it('rejects a document that is not a Grenjo AI Tool export', async () => {
     const { service } = harness();
     await expect(service.importConfig('{"app":"something-else"}')).rejects.toThrowError(
-      /not a personal ai desk configuration/i,
+      /not a grenjo ai tool configuration/i,
     );
+  });
+
+  it('still imports a configuration exported before the rename', async () => {
+    const { service } = harness();
+    const legacy = JSON.stringify({
+      app: 'personal-ai-desk',
+      credentials: 'excluded',
+      settings: { general: { theme: 'light' } },
+    });
+    const result = await service.importConfig(legacy);
+    expect(result.applied).toContain('settings');
   });
 
   it('rejects malformed JSON with a readable message', async () => {

@@ -41,8 +41,8 @@ function cleanElectronEnv() {
 
 const candidates = [
   argValue('exe'),
-  path.join(root, 'release', 'win-unpacked', 'Personal AI Desk.exe'),
-  path.join(root, 'release', 'win-unpacked', 'personal-ai-desk.exe'),
+  path.join(root, 'release', 'win-unpacked', 'Grenjo AI Tool.exe'),
+  path.join(root, 'release', 'win-unpacked', 'grenjo-ai-tool.exe'),
 ].filter(Boolean);
 
 const exePath = candidates.find((candidate) => fs.existsSync(candidate));

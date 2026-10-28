@@ -1,4 +1,4 @@
-# Personal AI Desk
+# Grenjo AI Tool
 
 A personal AI desktop application for Windows. Chat with the models **you** choose, using
 **your own** API keys, with agents, custom models and advanced generation controls — and a
@@ -6,6 +6,12 @@ local-first history that keeps working when the network does not.
 
 Not a subscription product, not a marketplace, not multi-tenant. One user, one machine
 (optionally plus a second machine through optional cloud sync).
+
+> **Renamed from "Personal AI Desk".** The display name, executable, installer and profile
+> folder are now `Grenjo AI Tool`. The first launch after the rename moves the old
+> `%APPDATA%\Personal AI Desk` profile forward automatically (chats, settings, agents, custom
+> models and stored API keys), and configuration files exported under the old marker still
+> import. See [Renaming and data migration](#renaming-and-data-migration).
 
 ![The spark mark used by the installer and the taskbar](build/icon.png)
 
@@ -37,8 +43,8 @@ Not a subscription product, not a marketplace, not multi-tenant. One user, one m
 
 ## Install
 
-1. Run `release/Personal AI Desk-Setup-0.1.0-x64.exe`.
-2. The installer is **per-user** by default and installs to `%LOCALAPPDATA%\Programs\Personal AI Desk`.
+1. Run `release/Grenjo AI Tool-Setup-0.1.0-x64.exe`.
+2. The installer is **per-user** by default and installs to `%LOCALAPPDATA%\Programs\Grenjo AI Tool`.
    It creates a Start-menu entry and a desktop shortcut. You can choose another folder during setup.
 3. **The installer is not code-signed.** Windows SmartScreen will warn you the first time you run
    it. That is expected: signing needs a purchased certificate. The SHA-256 of the built installer

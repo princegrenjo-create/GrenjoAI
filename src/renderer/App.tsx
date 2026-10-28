@@ -87,7 +87,7 @@ export function App(): ReactElement {
   }, [reduceMotion]);
 
   useEffect(() => {
-    document.title = `${ROUTE_META[route.name].title} · Personal AI Desk`;
+    document.title = `${ROUTE_META[route.name].title} · Grenjo AI Tool`;
   }, [route.name]);
 
   if (bridgeError) {
@@ -96,7 +96,7 @@ export function App(): ReactElement {
         <ErrorState
           title="The desktop bridge did not load"
           description={bridgeError.message}
-          detail="Restart Personal AI Desk. If the window is opened outside the desktop app, the renderer has no access to the application."
+          detail="Restart Grenjo AI Tool. If the window is opened outside the desktop app, the renderer has no access to the application."
         />
       </div>
     );

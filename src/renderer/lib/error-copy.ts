@@ -109,7 +109,7 @@ export function presentChatError(error: AppErrorShape): ErrorPresentation {
       return {
         title: 'The local database could not be read',
         description:
-          'Personal AI Desk stores conversations on this machine. Check the log under Settings → About, then restart the app.',
+          'Grenjo AI Tool stores conversations on this machine. Check the log under Settings → About, then restart the app.',
         retryable: true,
         action: 'retry',
         actionLabel: 'Try again',
