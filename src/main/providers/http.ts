@@ -118,6 +118,8 @@ export async function performRequest(
     redirect: 'error',
   };
   if (spec.body !== null) init.body = spec.body;
+  // A multipart body (audio transcription) is raw bytes, not a JSON string.
+  if (spec.bodyBytes) init.body = spec.bodyBytes;
   if (options.signal) init.signal = options.signal;
   return options.fetchImpl(spec.url, init);
 }

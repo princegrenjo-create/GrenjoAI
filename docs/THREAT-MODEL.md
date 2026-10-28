@@ -1,9 +1,15 @@
-# Threat model — Personal AI Desk
+# Threat model — Grenjo AI Tool
 
-Version 1 · 2026-10-29 · scope: the desktop application as built in this repository.
+Version 2 · 2026-10-29 · scope: the desktop application as built in this repository.
 
 This model exists to drive decisions, not to be filed. Each threat below names a
 scenario, the control that answers it, and where that control lives in the code.
+
+**Version 2 adds a boundary that did not exist in version 1: the user's own files
+and voice now leave this machine.** Documents are read locally and their text is
+sent to the model provider; a recording is uploaded to OpenAI when the user presses
+Transcribe; the renderer is now allowed one OS permission (the microphone). Those
+changes are modelled in §9.
 
 ## 1. Scope
 
@@ -118,3 +124,38 @@ entry point or listener appears; a new data class is synced; the renderer gains 
 network capability; the credential backend changes (for example to a Keychain on a
 future mobile build); or a shared code path starts accepting model-authored
 instructions as commands.
+
+## 8. Version 1 residual decisions carried forward
+
+Nothing in §9 relaxes §5: the key handling, IPC validation, CSP, RLS and
+redirect-refusal controls all still apply, and the attachment path uses the same
+transport as chat, so it inherits them.
+
+## 9. Version 2 — attachments and voice
+
+**New assets:** the contents of the owner's documents, their images, and their
+voice. **New entry points:** the native file picker, drag-and-drop bytes from the
+renderer, and the microphone. **New outflow:** document text and audio to a
+provider.
+
+| ID | Boundary | STRIDE | Scenario | Decision | Control (where) | Verification |
+|---|---|---|---|---|---|---|
+| A1 | B1 | Information disclosure | A document's contents are sent to a provider without the owner realising a *file* was read, or a file the model never received is shown as "attached". | Mitigate | Every attachment carries `contentStatus` (`extracted` / `metadata-only` / `failed`); extracted text is fenced with a header naming the file; a file whose contents were not read is named with the reason and never silently dropped. `src/shared/attachments.ts`, `src/main/chat/service.ts` `composeUserText` | `composeUserText` tests; renderer chip test asserting "contents not read" |
+| A2 | B1 | Elevation | A buggy or hostile renderer hands the app a 2 GB file, a `..\..\` filename, or a path outside the profile, and the main process trusts it. | Mitigate | The renderer never passes a path. `pick()` opens the dialog in main; `ingestBytes` validates base64 length *before* decoding; the store writes under `userData/attachments` with a generated id, never the user's filename; every limit in `ATTACHMENT_LIMITS` is enforced in main. | attachment service tests (oversize, path traversal name, unknown id) |
+| A3 | B1 | Tampering | A `.png` that is really an executable, or a MIME/extension mismatch, is forwarded as an image. | Mitigate | `probeImage` parses the actual magic bytes and refuses a content/MIME mismatch; only PNG/JPEG/WebP/GIF are accepted; images are re-encoded by nothing, so a mismatch is refused rather than laundered. | image probe tests (PNG/JPEG/WebP headers, mismatch rejected) |
+| A4 | B1/B2 | Information disclosure | An encrypted or corrupt PDF is reported as read, and the owner believes the model saw it. | Mitigate | PDF/DOCX extraction failure is `contentStatus: 'failed'` with a sentence naming encryption or corruption; the composer shows it, and the model receives the note, not an empty document. | extraction tests (encrypted PDF, corrupt DOCX) |
+| A5 | B2 | Information disclosure | Image bytes are attached to a model that cannot read them, so the request fails or the provider stores an image it was never meant to receive. | Mitigate | Capability gate before any write: `capabilities.imageInput === false` refuses the send with the model named. No silent downgrade, no "I cannot see it" reply. | chat service test `refuses an image on a model without image support` |
+| A6 | B2 | Tampering | A recorded audio file is transcribed by an endpoint that was not the one the owner configured. | Mitigate | The transcription request is built by the OpenAI adapter, goes through the same transport (`redirect: 'error'`, timeout, bounded retry) and the same base-URL binding as chat, so a repointed provider invalidates its key. | transcription service tests; transport tests |
+| A7 | — | Elevation | The microphone carve-out widens into camera or device access. | Mitigate | The permission handler grants `media` **only** for audio on the app's own origin; a `video` media type is denied, as is every other permission and all HID/serial/USB access. | `src/main/security.ts`; manual check that `getUserMedia({video:true})` is denied |
+| A8 | B1 | Information disclosure | A recording is uploaded before the owner asks, or a failed transcription is presented as a success. | Mitigate | Nothing is uploaded until Transcribe is pressed; the recorder holds the blob in memory; a failure returns the mapped error and keeps the recording for retry; an empty transcript is an error, never an empty message. | recorder tests; transcription tests (empty, 401, transport failure) |
+| A9 | B1/B3 | Information disclosure | Attachment metadata (filenames, sizes) is synced to the cloud and becomes a record of the owner's documents. | Accepted, with the control below | Only metadata is stored on the message (`MessageAttachment`: name, type, size, status) — never bytes, never a path. It therefore syncs with the conversation, which is the same trust level as the message text itself. Document *contents* are not stored separately: they live in the message text the owner already chose to send. | `MessageAttachment` type; migration 002 |
+| A10 | B1 | Information disclosure | The attachment folder grows forever with images the owner thought were deleted. | Mitigate | `release(ids)` deletes the on-disk mirror once the message is persisted; `remove(id)` deletes it immediately; `dispose()` clears anything still pending at quit. A failed send keeps the file so the composer can retry. | store tests (remove deletes the file); shutdown path |
+
+**Accepted residuals added in version 2**
+
+| Residual | Why it is accepted | Detection | Review trigger |
+|---|---|---|---|
+| Document text sent to a provider is then subject to that provider's retention policy | The owner chose the provider and the file; the app cannot enforce a third party's data handling | Provider-side | If a "never send contents" mode is requested |
+| An attachment's filename and size reach the cloud when sync is on | It is part of the conversation record the owner asked to sync; bytes are not | n/a | If filenames themselves become sensitive |
+| macOS/Linux microphone permission prompts are untested | Only Windows was exercised in this workspace | n/a | Before a macOS/Linux build |
+

@@ -23,7 +23,8 @@ export const PROD_CSP = [
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
   "connect-src 'none'",
-  "media-src 'none'",
+  // `blob:` is required to preview a just-recorded voice memo; no remote media.
+  "media-src 'self' blob:",
   "object-src 'none'",
   "frame-src 'none'",
   "worker-src 'self'",
@@ -62,17 +63,58 @@ export function applyContentSecurityPolicy(target: Session, options: HardeningOp
     callback({ responseHeaders: headers });
   });
 
-  target.setPermissionRequestHandler((_contents, permission, callback) => {
-    logger.warn('Denied a renderer permission request', { permission });
+  /*
+   * Permissions: everything is denied except the microphone, and the microphone
+   * only for the app's own origin and only for audio.
+   *
+   * This is the minimum carve-out voice recording needs. It is deliberately not
+   * `callback(true)` for `media` in general: a `media` grant that includes
+   * `video` would hand the renderer the camera, and this application never needs
+   * one. `getUserMedia({video:true})` is therefore still refused.
+   */
+  const isOwnOrigin = (url: string | undefined): boolean =>
+    typeof url === 'string' && url.startsWith(options.allowedOrigin);
+
+  target.setPermissionRequestHandler((contents, permission, callback, details) => {
+    const requestingUrl = details?.requestingUrl ?? contents.getURL();
+    // `mediaTypes` only exists on a media permission request; the union type
+    // covers several request shapes, so it is read defensively.
+    const rawMediaTypes =
+      permission === 'media' && details && 'mediaTypes' in details
+        ? (details as { mediaTypes?: unknown }).mediaTypes
+        : undefined;
+    const mediaTypes: string[] = Array.isArray(rawMediaTypes)
+      ? rawMediaTypes.filter((entry): entry is string => typeof entry === 'string')
+      : [];
+    const audioOnly =
+      mediaTypes.length === 0 ||
+      (mediaTypes.includes('audio') && !mediaTypes.includes('video'));
+
+    if (permission === 'media' && audioOnly && isOwnOrigin(requestingUrl)) {
+      logger.info('Granted the microphone permission for a recording', {
+        mediaTypes: mediaTypes.join(',') || 'audio',
+      });
+      callback(true);
+      return;
+    }
+    logger.warn('Denied a renderer permission request', {
+      permission,
+      mediaTypes: mediaTypes.join(','),
+      ownOrigin: isOwnOrigin(requestingUrl),
+    });
     callback(false);
   });
 
-  target.setPermissionCheckHandler((_contents, permission) => {
-    logger.debug('Denied a renderer permission check', { permission });
+  target.setPermissionCheckHandler((_contents, permission, requestingOrigin, details) => {
+    const mediaType = details?.mediaType;
+    if (permission === 'media' && mediaType !== 'video' && isOwnOrigin(requestingOrigin)) {
+      return true;
+    }
+    logger.debug('Denied a renderer permission check', { permission, mediaType });
     return false;
   });
 
-  // No device access is needed anywhere in this application.
+  // Device (HID/serial/USB) access is not needed anywhere in this application.
   try {
     target.setDevicePermissionHandler(() => false);
   } catch {

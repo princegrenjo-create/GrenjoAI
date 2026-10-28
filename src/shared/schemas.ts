@@ -9,6 +9,7 @@
 import { z } from 'zod';
 import { GEN_PARAM_KEYS, PROVIDER_KINDS } from './types';
 import type { GenerationParams } from './types';
+import { ATTACHMENT_LIMITS } from './attachments';
 import { MAX_API_KEY_LENGTH, MAX_MESSAGE_CHARS } from './defaults';
 
 const idString = z.string().trim().min(1).max(128);
@@ -147,10 +148,32 @@ export const conversationListSchema = z
 export const chatSendSchema = z
   .object({
     conversationId: idString,
-    content: z.string().min(1).max(MAX_MESSAGE_CHARS),
+    content: z.string().max(MAX_MESSAGE_CHARS),
+    attachmentIds: z.array(idString).max(ATTACHMENT_LIMITS.maxPerMessage).optional(),
     modelRef: modelRefSchema.optional(),
     paramsOverride: generationParamsSchema.optional(),
     systemPromptOverride: z.string().max(32000).optional(),
+  })
+  .strict()
+  .refine(
+    (value) => value.content.trim().length > 0 || (value.attachmentIds?.length ?? 0) > 0,
+    { message: 'A message needs text or at least one attachment.', path: ['content'] },
+  );
+
+export const attachmentIngestSchema = z
+  .object({
+    name: z.string().trim().min(1).max(255),
+    mimeType: z.string().trim().max(200),
+    dataBase64: z.string().min(1),
+    kindHint: z.enum(['image', 'file']).optional(),
+  })
+  .strict();
+
+export const transcriptionInputSchema = z
+  .object({
+    dataBase64: z.string().min(1),
+    mimeType: z.string().trim().min(1).max(120),
+    durationMs: z.number().int().min(0).max(ATTACHMENT_LIMITS.maxAudioSeconds * 1000),
   })
   .strict();
 

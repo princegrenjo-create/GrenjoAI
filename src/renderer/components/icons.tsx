@@ -291,3 +291,47 @@ export function DatabaseIcon({ className }: IconProps): ReactElement {
     </IconBase>
   );
 }
+
+export function PaperclipIcon({ className }: IconProps): ReactElement {
+  return (
+    <IconBase className={className}>
+      <path d="M20 11.6 12.7 19a4.6 4.6 0 0 1-6.5-6.5l7.6-7.6a3.1 3.1 0 0 1 4.4 4.4l-7.6 7.6a1.6 1.6 0 0 1-2.3-2.3l6.8-6.8" />
+    </IconBase>
+  );
+}
+
+export function ImageIcon({ className }: IconProps): ReactElement {
+  return (
+    <IconBase className={className}>
+      <rect x="4" y="5" width="16" height="14" rx="2.5" />
+      <circle cx="9" cy="10" r="1.5" />
+      <path d="m4.5 17 4.4-4.4 3.3 3.3 2.4-2.4 4.9 4.9" />
+    </IconBase>
+  );
+}
+
+export function MicIcon({ className }: IconProps): ReactElement {
+  return (
+    <IconBase className={className}>
+      <rect x="9.5" y="3.5" width="5" height="10" rx="2.5" />
+      <path d="M6 11.5a6 6 0 0 0 12 0M12 17.5v3M9 20.5h6" />
+    </IconBase>
+  );
+}
+
+export function FileIcon({ className }: IconProps): ReactElement {
+  return (
+    <IconBase className={className}>
+      <path d="M6 3.5h7l5 5v12a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 20.5v-17Z" />
+      <path d="M13 3.5v5h5" />
+    </IconBase>
+  );
+}
+
+export function AudioIcon({ className }: IconProps): ReactElement {
+  return (
+    <IconBase className={className}>
+      <path d="M4 10.5v3M8 7.5v9M12 4.5v15M16 7.5v9M20 10.5v3" />
+    </IconBase>
+  );
+}

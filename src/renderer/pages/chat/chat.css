@@ -215,6 +215,10 @@
   width: var(--size-selector);
 }
 
+.pds-chat__selector-slot {
+  width: var(--size-selector);
+}
+
 .pds-chat__selector .pds-field__label {
   color: var(--text-muted);
   font-size: var(--text-caption);
@@ -402,14 +406,37 @@
   max-height: var(--size-textarea-max);
 }
 
+.pds-composer__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs);
+  padding-top: var(--space-2xs);
+}
+
+.pds-composer__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+}
+
 .pds-composer__hint {
   display: flex;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  padding-left: var(--space-sm);
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-xs);
+  min-width: 0;
   color: var(--text-subtle);
   font-size: var(--text-caption);
   line-height: var(--leading-ui);
+  text-align: right;
+}
+
+.pds-composer__hint-note {
+  color: var(--text-muted);
 }
 
 .pds-composer__count {
@@ -472,4 +499,279 @@
   .pds-chat__selector {
     width: var(--size-selector);
   }
+
+  .pds-chat__selector-slot {
+    width: var(--size-selector);
+  }
+
+  /* Recording and attachment chips are thumb targets on a narrow window. */
+  .pds-recorder__actions .pds-btn {
+    min-height: var(--size-control-lg);
+  }
+
+  .pds-attachment .pds-icon-btn {
+    min-width: var(--size-control-lg);
+    min-height: var(--size-control-lg);
+  }
+
+  /* The capability warning stacks its action under the text instead of
+     squeezing the sentence into a third column. */
+  .pds-composer__warning {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .pds-composer__warning .pds-btn {
+    grid-column: 2;
+    justify-self: start;
+    min-height: var(--size-control-lg);
+  }
+}
+
+/* ---------------------------------------------------------- attachments --- */
+
+.pds-attachments {
+  --attachment-thumb: calc(var(--space-xl) + var(--space-2xs));
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pds-attachment {
+  display: grid;
+  grid-template-columns: var(--attachment-thumb) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-xs);
+  max-width: 100%;
+  padding: var(--space-2xs) var(--space-xs) var(--space-2xs) var(--space-2xs);
+  border: var(--size-border) solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.pds-attachment__thumb {
+  display: grid;
+  place-items: center;
+  width: var(--attachment-thumb);
+  height: var(--attachment-thumb);
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+  color: var(--text-muted);
+}
+
+.pds-attachment__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pds-attachment__text {
+  display: grid;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+
+.pds-attachment__name {
+  color: var(--text);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-ui);
+  overflow-wrap: anywhere;
+}
+
+.pds-attachment__meta {
+  color: var(--text-subtle);
+  font-size: var(--text-caption);
+  line-height: var(--leading-ui);
+}
+
+.pds-attachment__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2xs);
+}
+
+.pds-attachment__note {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+}
+
+.pds-message__attachments {
+  margin-top: var(--space-xs);
+}
+
+.pds-message--user .pds-message__attachments {
+  justify-content: flex-end;
+}
+
+/* -------------------------------------------------- composer attachment UI -- */
+
+.pds-composer--dragging {
+  background: var(--surface-2);
+}
+
+.pds-composer__drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  border: var(--size-border-strong) dashed var(--accent-border);
+  border-radius: var(--radius-md);
+  background: var(--accent-muted);
+  color: var(--text);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-ui);
+}
+
+.pds-composer__rejections {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-sm);
+  border: var(--size-border) solid var(--border);
+  border-left: var(--size-accent-bar) solid var(--danger);
+  border-radius: var(--radius-md);
+  background: var(--danger-muted);
+}
+
+.pds-composer__rejection-list {
+  display: grid;
+  gap: var(--space-2xs);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pds-composer__rejection {
+  color: var(--text);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+}
+
+.pds-composer__rejection-name {
+  font-weight: var(--weight-medium);
+}
+
+.pds-composer__warning {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border: var(--size-border) solid var(--warning);
+  border-radius: var(--radius-md);
+  background: var(--warning-muted);
+}
+
+.pds-composer__warning-icon {
+  color: var(--warning);
+}
+
+.pds-composer__warning-text {
+  display: grid;
+  gap: var(--space-2xs);
+  min-width: 0;
+}
+
+.pds-composer__warning-title {
+  color: var(--text);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-ui);
+}
+
+.pds-composer__warning-body {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+}
+
+/* ------------------------------------------------------------ recorder --- */
+
+.pds-recorder {
+  display: grid;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  border: var(--size-border) solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.pds-recorder--error {
+  border-color: var(--danger);
+  background: var(--danger-muted);
+}
+
+.pds-recorder__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.pds-recorder__icon {
+  color: var(--danger);
+}
+
+.pds-recorder__title {
+  color: var(--text);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-ui);
+}
+
+.pds-recorder__timer {
+  color: var(--text-muted);
+  font-size: var(--text-ui);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-ui);
+}
+
+.pds-recorder__dot {
+  width: var(--space-xs);
+  height: var(--space-xs);
+  border-radius: var(--radius-full);
+  background: var(--danger);
+  animation: pds-pulse var(--duration-caret) var(--ease-standard) infinite;
+}
+
+.pds-recorder__audio {
+  width: 100%;
+  height: var(--size-control-lg);
+}
+
+.pds-recorder__message {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+}
+
+.pds-recorder__note {
+  color: var(--text-muted);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+}
+
+.pds-recorder__error {
+  color: var(--danger);
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+}
+
+.pds-recorder__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
 }

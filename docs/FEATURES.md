@@ -157,6 +157,29 @@ The renderer exceeds the 200 kB gzip guideline by ~13 kB, almost entirely
 fetch, so it does not affect start time on this platform; if it matters, restrict
 the highlighter to a language subset or lazy-load it. Recorded rather than hidden.
 
+## Attachments and voice (added after the first release)
+
+| Feature | Status | Evidence / limit |
+|---|---|---|
+| Native file picker through IPC | **DONE** | `dialog.showOpenDialog` in the main process; the renderer never sees a path (`attachments.pick`) |
+| Drag-and-drop ingestion | **DONE** | renderer reads `File.arrayBuffer()` → `attachments.ingestBytes` (no `file.path` exists in this Electron version) |
+| Filename / type / size chips with removal before sending | **DONE** | renderer tests: add, remove, rejected-file reason kept apart from accepted files |
+| TXT, Markdown, CSV/TSV, JSON, YAML, XML, source code extraction | **DONE** | 33 extensions classified; extracted text is fenced with a header naming the file |
+| PDF text extraction | **DONE** | `unpdf` 2.0.0; encrypted PDF → `failed` with "password-protected", never an empty document; verified inside the Electron runtime against a generated PDF (`chars=29`) |
+| DOCX text extraction | **DONE** | `mammoth` 1.13.0; corrupt file → `failed` with a readable note; verified inside the Electron runtime (`chars=30`) |
+| Oversize / empty / binary-renamed-to-.txt | **DONE** | each returns `failed` with a sentence; limits enforced in main, not only in the UI |
+| Truncation of very long documents | **DONE** | 60,000 characters plus a visible `[truncated]` marker |
+| "Never silently attach" | **DONE** | every attachment carries `contentStatus`; an unread file is named with its reason in the prompt and shown in the chip |
+| Image selection, validation, preview | **DONE** | PNG/JPEG/WebP/GIF headers parsed with no dependency; MIME/content mismatch refused; preview inline only ≤512 KB |
+| Multimodal requests for all providers | **DONE** | OpenAI `image_url` data URL, Anthropic `image` base64 block, Gemini `inlineData`; text-only turns still send a plain string (regression-tested) |
+| Capability gate | **DONE** | an image on a model without `imageInput` is refused before any write, naming the model; no silent downgrade |
+| Voice recording | **DONE** | `getUserMedia` + `MediaRecorder` (webm/opus with fallbacks), live timer, stop, cancel, preview, discard |
+| Microphone permission | **DONE** | the only permission granted is `media`, audio-only, own origin; `video` and every other permission stay denied; CSP gains `media-src 'self' blob:` for the preview only |
+| Transcription | **DONE** | OpenAI `POST /v1/audio/transcriptions` (`whisper-1`) through the same hardened transport; no OpenAI key → a sentence saying exactly what to configure |
+| Recording failures surfaced | **DONE** | permission denied, no device, no supported codec, empty recording, oversize, over-length, API error — each mapped, never a fabricated transcript |
+| Live provider transcription | **UNAVAILABLE** | no OpenAI key in this workspace; the request shape, multipart body and error mapping are covered by 12 offline tests |
+| Recording with a real microphone | **UNAVAILABLE (automated)** | the recorder is tested with mocked `getUserMedia`/`MediaRecorder`; a real device check is manual |
+
 ## Audit status
 
 An independent auditor (a teammate that wrote none of this code) ran two passes.

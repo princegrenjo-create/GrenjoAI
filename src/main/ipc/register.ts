@@ -18,6 +18,7 @@ import { AppError, appError } from '@shared/errors';
 import { createInvoker } from './handler';
 import {
   agentInputSchema,
+  attachmentIngestSchema,
   chatSendSchema,
   conversationCreateSchema,
   conversationPatchSchema,
@@ -30,6 +31,7 @@ import {
   syncAuthSchema,
   syncConfigSchema,
   syncResolveSchema,
+  transcriptionInputSchema,
 } from '@shared/schemas';
 import { isExternalLinkAllowed } from '@shared/url-policy';
 import type { AgentInput, AppInfo, AppPaths, AppSettingsPatch, ChatSendInput, ConversationCreateInput, ConversationPatch, CustomModelInput, ProviderInput } from '@shared/types';
@@ -41,6 +43,7 @@ import type { SettingsService } from '../services/settings';
 import type { ChatService } from '../chat/service';
 import type { CredentialStore } from '../credentials';
 import type { SyncController } from '../services/sync';
+import type { AttachmentService } from '../attachments/service';
 
 export interface IpcDependencies {
   db: Database;
@@ -48,6 +51,7 @@ export interface IpcDependencies {
   models: ModelService;
   settings: SettingsService;
   chat: ChatService;
+  attachments: AttachmentService;
   credentials: CredentialStore;
   sync: SyncController;
   appInfo: () => AppInfo;
@@ -143,6 +147,23 @@ export function registerIpcHandlers(deps: IpcDependencies): void {
   });
 
   handle(IPC.messagesList, idSchema, (id: string) => db.messages.listByConversation(id));
+
+  /* --------------------------------------------------------- attachments -- */
+
+  handle(IPC.attachmentsPick, null, () => deps.attachments.pick());
+  handle(IPC.attachmentsIngestBytes, attachmentIngestSchema, (input) =>
+    deps.attachments.ingestBytes(input),
+  );
+  handle(IPC.attachmentsGet, idSchema, (id: string) => deps.attachments.get(id));
+  handle(IPC.attachmentsRemove, idSchema, async (id: string) => {
+    await deps.attachments.remove(id);
+    return { removed: true };
+  });
+  handle(IPC.attachmentsReadImage, idSchema, (id: string) => deps.attachments.readImage(id));
+  handle(IPC.attachmentsTranscribe, transcriptionInputSchema, (input) =>
+    deps.attachments.transcribe(input),
+  );
+  handle(IPC.attachmentsTranscriptionStatus, null, () => deps.attachments.transcriptionStatus());
 
   /* ---------------------------------------------------------------- chat -- */
 

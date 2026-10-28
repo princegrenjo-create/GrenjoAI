@@ -61,7 +61,27 @@ function anthropicHeaders(key: string): Record<string, string> {
 function toAnthropicBody(request: ChatCompletionRequest): Record<string, unknown> {
   const params = request.params;
 
-  const messages = request.turns.map((turn) => ({ role: turn.role, content: turn.content }));
+  // The Messages API takes typed content blocks. A text-only turn stays a plain
+  // string (the shape every existing conversation stores); an image turn becomes
+  // a `text` block plus an `image` block with base64 source.
+  const messages = request.turns.map((turn) => ({
+    role: turn.role,
+    content:
+      typeof turn.content === 'string'
+        ? turn.content
+        : turn.content.map((part) =>
+            part.type === 'text'
+              ? { type: 'text' as const, text: part.text }
+              : {
+                  type: 'image' as const,
+                  source: {
+                    type: 'base64' as const,
+                    media_type: part.mimeType,
+                    data: part.dataBase64,
+                  },
+                },
+          ),
+  }));
 
   const body: Record<string, unknown> = {
     model: request.modelId,

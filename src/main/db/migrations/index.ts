@@ -16,6 +16,7 @@ import { num, str } from '../codec';
 import { DbError, describeError } from '../errors';
 import type { DbLogger } from '../log';
 import { INITIAL_SCHEMA_SQL } from './001-initial-schema';
+import { MESSAGE_ATTACHMENTS_SQL } from './002-message-attachments';
 
 export interface Migration {
   readonly version: number;
@@ -25,6 +26,9 @@ export interface Migration {
 
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, name: 'initial-schema', sql: INITIAL_SCHEMA_SQL },
+  // Additive: an existing database gains a defaulted column, so a message written
+  // before attachments existed reads back with an empty list rather than failing.
+  { version: 2, name: 'message-attachments', sql: MESSAGE_ATTACHMENTS_SQL },
 ];
 
 const SCHEMA_MIGRATIONS_SQL = `

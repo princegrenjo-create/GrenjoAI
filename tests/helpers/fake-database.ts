@@ -38,6 +38,7 @@ import type {
   WriteOptions,
 } from '@shared/repository-contract';
 import type { MigrationRecord, SqlRunner } from '@shared/repository-contract';
+import type { MessageAttachment } from '@shared/attachments';
 
 const NOW = () => new Date().toISOString();
 
@@ -206,6 +207,7 @@ export function createFakeDatabase(options: FakeDatabaseOptions = {}): FakeDatab
       content: string;
       status?: MessageStatus;
       modelRef?: { providerId: string; modelId: string } | null;
+      attachments?: MessageAttachment[];
     }) {
       calls.push('messages.append');
       messageSeq += 1;
@@ -220,6 +222,7 @@ export function createFakeDatabase(options: FakeDatabaseOptions = {}): FakeDatab
         error: null,
         usage: null,
         modelRef: input.modelRef ?? null,
+        attachments: input.attachments ?? [],
         createdAt: at,
         updatedAt: at,
       };

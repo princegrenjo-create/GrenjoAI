@@ -1,4 +1,4 @@
-import { useEffect, type ReactElement } from 'react';
+import { useEffect, useRef, type ReactElement } from 'react';
 import { ChatIcon, PanelIcon } from '@renderer/components/icons';
 import { Button, EmptyState, ErrorState, IconButton, Select } from '@renderer/components/ui';
 import { useHeadingFocus } from '@renderer/lib/hooks';
@@ -49,6 +49,7 @@ export function ChatPage(): ReactElement {
 
   const settings = useSettingsStore((state) => state.settings);
   const headingRef = useHeadingFocus<HTMLHeadingElement>();
+  const modelSelectorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     void loadConversations();
@@ -79,6 +80,26 @@ export function ChatPage(): ReactElement {
     conversation?.providerId && conversation.modelId
       ? `${conversation.providerId}|${conversation.modelId}`
       : '';
+
+  /*
+   * The conversation names its model by id; the catalogue row for it is what
+   * carries the capabilities. An image attachment is only allowed when that row
+   * says the model accepts image input.
+   */
+  const selectedModel =
+    conversation?.providerId && conversation.modelId
+      ? (models.find(
+          (model) =>
+            model.providerId === conversation.providerId &&
+            model.modelId === conversation.modelId,
+        ) ?? null)
+      : null;
+
+  const focusModelPicker = (): void => {
+    // The Model select is a button inside this slot; focusing it is the shortest
+    // honest path from "this model cannot take images" to picking one that can.
+    modelSelectorRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+  };
 
   const modelOptions = models.map((model) => ({
     value: `${model.providerId}|${model.modelId}`,
@@ -143,17 +164,19 @@ export function ChatPage(): ReactElement {
           </div>
 
           <div className="pds-chat__selectors">
-            <Select
-              className="pds-chat__selector"
-              label="Model"
-              size="sm"
-              value={selectedModelKey}
-              options={modelOptions}
-              onChange={onModelChange}
-              disabled={!conversation || models.length === 0}
-              placeholder={models.length === 0 ? 'No models available' : 'Select a model'}
-              hint={modelHint}
-            />
+            <div className="pds-chat__selector-slot" ref={modelSelectorRef}>
+              <Select
+                className="pds-chat__selector"
+                label="Model"
+                size="sm"
+                value={selectedModelKey}
+                options={modelOptions}
+                onChange={onModelChange}
+                disabled={!conversation || models.length === 0}
+                placeholder={models.length === 0 ? 'No models available' : 'Select a model'}
+                hint={modelHint}
+              />
+            </div>
             <Select
               className="pds-chat__selector"
               label="Agent"
@@ -223,9 +246,10 @@ export function ChatPage(): ReactElement {
           ready={conversation !== null}
           isSending={isSending}
           sendOnEnter={settings.general.sendOnEnter}
-          onSend={(content) => {
-            void send(content);
-          }}
+          modelName={selectedModel?.displayName ?? null}
+          modelAcceptsImages={selectedModel ? selectedModel.capabilities.imageInput : null}
+          onChooseModel={focusModelPicker}
+          onSend={(content, attachments) => send(content, attachments)}
           onStop={() => {
             void stop();
           }}

@@ -16,7 +16,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { app, Menu, net, safeStorage, shell } from 'electron';
+import { app, dialog, Menu, net, safeStorage, shell } from 'electron';
 import type { BrowserWindow } from 'electron';
 import type { AppInfo, AppPaths, AppSettings } from '@shared/types';
 import { createLogger, type Logger } from './logger';
@@ -32,6 +32,9 @@ import { createChatService } from './chat/service';
 import { createRegistry } from './providers/registry';
 import { createProviderTransport } from './providers/transport';
 import { registerIpcHandlers, sendToWindow } from './ipc/register';
+import { createAttachmentService } from './attachments/service';
+import { createAttachmentStore } from './attachments/store';
+import { createTranscriptionService } from './transcription/service';
 import { resolveUserDataDir } from './profile';
 import {
   createCredentialSessionStorage,
@@ -224,6 +227,44 @@ async function bootstrap(): Promise<void> {
     logger: log,
   });
 
+  /*
+   * Attachments and transcription.
+   *
+   * The picker is the only place that touches `dialog`; the attachment service
+   * itself is Electron-free so it can be tested, and so a future web client can
+   * supply its own file source.
+   */
+  const transcriptionService = createTranscriptionService({
+    db,
+    credentials,
+    registry,
+    transport,
+    logger: log,
+  });
+  const attachmentStore = createAttachmentStore({
+    directory: path.join(userData, 'attachments'),
+    logger: log,
+  });
+  const attachmentService = createAttachmentService({
+    store: attachmentStore,
+    logger: log,
+    transcription: transcriptionService,
+    dialogs: {
+      pickFiles: async () => {
+        const options = {
+          title: 'Attach files',
+          buttonLabel: 'Attach',
+          properties: ['openFile', 'multiSelections'] as Array<'openFile' | 'multiSelections'>,
+        };
+        const window = mainWindow;
+        const result = window
+          ? await dialog.showOpenDialog(window, options)
+          : await dialog.showOpenDialog(options);
+        return { canceled: result.canceled, paths: result.filePaths };
+      },
+    },
+  });
+
   const chatService = createChatService({
     db,
     credentials,
@@ -241,6 +282,7 @@ async function bootstrap(): Promise<void> {
     emit: (event) => {
       sendToWindow(mainWindow, IPC.chatEvent, event);
     },
+    attachments: attachmentService,
   });
 
   // Cloud sync is optional. The engine is constructed here because it needs the
@@ -336,6 +378,7 @@ async function bootstrap(): Promise<void> {
     models: modelService,
     settings: settingsService,
     chat: chatService,
+    attachments: attachmentService,
     credentials,
     sync: syncController,
     appInfo,
@@ -383,12 +426,16 @@ async function bootstrap(): Promise<void> {
   // React mounted, and that the CSP meta tag survived the build. The result is
   // written to a file because a GUI process's stdout is not reliable on Windows.
   const smokeOut = process.argv.find((arg) => arg.startsWith('--smoke-out='));
+  const attachProbe = process.argv.find((arg) => arg.startsWith('--attach-probe='));
   if (process.argv.includes('--smoke-test')) {
     await runSmokeTest(
       mainWindow,
       smokeOut ? smokeOut.slice('--smoke-out='.length) : null,
       appInfo(),
       log.child('smoke'),
+      // Proves from inside the shipped runtime that the document parsers really
+      // load, instead of only in a Node test process.
+      attachProbe ? attachProbe.slice('--attach-probe='.length) : null,
     );
   }
 
@@ -405,6 +452,13 @@ async function bootstrap(): Promise<void> {
       syncController.dispose();
     } catch (error) {
       log.warn('Error disposing the sync controller', { error });
+    }
+    try {
+      // Pending attachments are transient: the on-disk mirror is cleaned up so an
+      // unsent file does not outlive the session. Sent ones are already persisted.
+      attachmentService.dispose();
+    } catch (error) {
+      log.warn('Error disposing the attachment service', { error });
     }
     try {
       db.checkpoint();
@@ -445,12 +499,14 @@ async function runSmokeTest(
   outputPath: string | null,
   info: AppInfo,
   log: Logger,
+  attachProbePath: string | null,
 ): Promise<never> {
   const result: Record<string, unknown> = {
     ok: false,
     at: new Date().toISOString(),
     app: info,
     probe: null,
+    attachmentProbe: null,
     error: null,
   };
 
@@ -494,6 +550,26 @@ async function runSmokeTest(
       probe.rootChildren > 0 &&
       probe.cspPresent;
     log.info('Smoke probe result', { ...probe, ok: result.ok });
+
+    if (attachProbePath) {
+      // Optional: extract a real document through the shipped parsers. This is
+      // what proves pdfjs and mammoth load from inside the packaged app rather
+      // than only in a test process.
+      const { extractText } = await import('./attachments/extract');
+      const output = await extractText({
+        filePath: attachProbePath,
+        name: path.basename(attachProbePath),
+        mimeType: '',
+        sizeBytes: fs.statSync(attachProbePath).size,
+      });
+      result.attachmentProbe = {
+        status: output.contentStatus,
+        chars: output.text?.length ?? 0,
+        note: output.note,
+        head: output.text?.slice(0, 40) ?? null,
+      };
+      log.info('Attachment extraction probe', result.attachmentProbe as Record<string, unknown>);
+    }
   } catch (error) {
     result.error = error instanceof Error ? error.message : String(error);
     log.error('Smoke probe failed', { error: result.error });

@@ -20,7 +20,8 @@ const PROD_CSP = [
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
   "connect-src 'none'",
-  "media-src 'none'",
+  // Previewing a just-recorded voice memo needs blob:; there is no remote media.
+  "media-src 'self' blob:",
   "object-src 'none'",
   "frame-src 'none'",
   "worker-src 'self'",
@@ -37,6 +38,7 @@ const DEV_CSP = [
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
   "connect-src 'self' ws://localhost:* ws://127.0.0.1:* http://localhost:* http://127.0.0.1:*",
+  "media-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'none'",
   "form-action 'none'",

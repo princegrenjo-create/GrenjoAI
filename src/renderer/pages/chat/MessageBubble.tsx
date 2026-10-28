@@ -3,6 +3,7 @@ import { Badge } from '@renderer/components/ui';
 import { Markdown } from '@renderer/components/markdown/Markdown';
 import { formatTime, formatTokenUsage } from '@renderer/lib/format';
 import type { ChatEntry } from '@renderer/lib/store';
+import { AttachmentList } from './AttachmentList';
 import { ChatErrorCard } from './ChatErrorCard';
 import { CopyButton } from './CopyButton';
 
@@ -52,10 +53,18 @@ function MessageBubbleComponent({ entry, showTokenUsage, onRetry }: MessageBubbl
         {isError && entry.error ? (
           <ChatErrorCard error={entry.error} onRetry={onRetry} />
         ) : isUser ? (
-          <p className="pds-message__text">{entry.content}</p>
+          entry.content.length > 0 ? (
+            <p className="pds-message__text">{entry.content}</p>
+          ) : null
         ) : (
           <Markdown content={entry.content} />
         )}
+        {entry.attachments.length > 0 ? (
+          <AttachmentList
+            className="pds-message__attachments"
+            attachments={entry.attachments}
+          />
+        ) : null}
         {streaming && entry.content.length === 0 ? (
           <span className="pds-caret pds-caret--alone" aria-hidden="true" />
         ) : null}

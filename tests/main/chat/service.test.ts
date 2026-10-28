@@ -20,7 +20,8 @@ import type {
 import { createMemoryCredentialStore } from '@main/credentials';
 import { bindProviderKey } from '@main/models/endpoint-policy';
 import { createNullLogger } from '@main/logger';
-import { createChatService } from '@main/chat/service';
+import { createChatService, composeUserText } from '@main/chat/service';
+import type { AttachmentPayload } from '@shared/attachments';
 import { createFakeDatabase, type FakeDatabase } from '../../helpers/fake-database';
 
 interface Captured {
@@ -57,6 +58,7 @@ interface HarnessOptions {
   appParams?: GenerationParams;
   weirdnessMode?: 'off' | 'creativityBias';
   withKey?: boolean;
+  payloads?: AttachmentPayload[];
 }
 
 function createHarness(options: HarnessOptions = {}) {
@@ -88,6 +90,8 @@ function createHarness(options: HarnessOptions = {}) {
   });
 
   const captured: Captured = { requests: [], runtimes: [] };
+  /** Ids the chat service released once a turn was persisted. */
+  const released: string[] = [];
   const events: ChatStreamEvent[] = [];
 
   const defaultRun = async (
@@ -129,6 +133,13 @@ function createHarness(options: HarnessOptions = {}) {
     logger: createNullLogger(),
     isOnline: () => true,
     flushIntervalMs: 0,
+    attachments: {
+      resolve: (ids) =>
+        (options.payloads ?? []).filter((payload) => ids.includes(payload.meta.id)),
+      release: (ids) => {
+        released.push(...ids);
+      },
+    },
   });
 
   function waitForTerminal(timeoutMs = 2000): Promise<ChatStreamEvent> {
@@ -147,7 +158,7 @@ function createHarness(options: HarnessOptions = {}) {
     });
   }
 
-  return { db, credentials, provider, conversation, captured, events, service, waitForTerminal };
+  return { db, credentials, provider, conversation, captured, events, service, waitForTerminal, released };
 }
 
 describe('chat service', () => {
@@ -336,5 +347,207 @@ describe('chat service', () => {
     const request = harness.captured.requests[0];
     expect(request?.turns.length).toBeLessThanOrEqual(3);
     expect(request?.turns.at(-1)?.content).toBe('latest');
+  });
+});
+
+/* ------------------------------------------------------------ attachments -- */
+
+function payload(overrides: Partial<AttachmentPayload> = {}): AttachmentPayload {
+  return {
+    meta: {
+      id: 'att-1',
+      kind: 'text',
+      name: 'notes.md',
+      mimeType: 'text/markdown',
+      sizeBytes: 1234,
+      contentStatus: 'extracted',
+      contentNote: null,
+      extractedChars: 24,
+      sentToProvider: false,
+      imageWidth: null,
+      imageHeight: null,
+      previewDataUrl: null,
+      durationMs: null,
+      createdAt: '2026-10-29T00:00:00.000Z',
+      ...overrides.meta,
+    },
+    text: 'extracted body',
+    image: null,
+    filePath: null,
+    ...overrides,
+  };
+}
+
+function imagePayload(): AttachmentPayload {
+  return {
+    meta: {
+      ...payload().meta,
+      id: 'img-1',
+      kind: 'image',
+      name: 'shot.png',
+      mimeType: 'image/png',
+      contentStatus: 'extracted',
+      sentToProvider: true,
+      imageWidth: 1,
+      imageHeight: 1,
+    },
+    text: null,
+    image: { dataBase64: 'AAAA', mimeType: 'image/png' },
+    filePath: null,
+  };
+}
+
+describe('composeUserText', () => {
+  it('leaves a text-only message untouched', () => {
+    expect(composeUserText('just text', [])).toBe('just text');
+  });
+
+  it('fences extracted document text with a header naming the file', () => {
+    const composed = composeUserText('summarise this', [payload()]);
+    expect(composed).toContain('summarise this');
+    expect(composed).toContain('--- Attached file: notes.md (text/markdown, 1.2 KB) ---');
+    expect(composed).toContain('extracted body');
+    expect(composed).toContain('--- End of notes.md ---');
+  });
+
+  it('names an unreadable attachment instead of dropping it silently', () => {
+    const composed = composeUserText('look', [
+      payload({
+        meta: {
+          ...payload().meta,
+          id: 'att-2',
+          name: 'report.pdf',
+          mimeType: 'application/pdf',
+          contentStatus: 'failed',
+          contentNote: 'The PDF is password-protected.',
+        },
+        text: null,
+      }),
+    ]);
+    expect(composed).toContain('[Attached file: report.pdf');
+    expect(composed).toContain('contents not included');
+    expect(composed).toContain('password-protected');
+  });
+
+  it('does not put an image into the text — images travel as their own part', () => {
+    expect(composeUserText('what is this', [imagePayload()])).toBe('what is this');
+  });
+});
+
+describe('chat service attachments', () => {
+  it('keeps text-only messages byte-identical (regression)', async () => {
+    const harness = createHarness();
+    harness.service.send({ conversationId: harness.conversation.id, content: 'plain question' });
+    await harness.waitForTerminal();
+
+    const messages = harness.db.messages.listByConversation(harness.conversation.id);
+    expect(messages[0]?.content).toBe('plain question');
+    expect(messages[0]?.attachments).toEqual([]);
+    // The request turn is still a plain string, not a content-part array.
+    expect(harness.captured.requests[0]?.turns.at(-1)?.content).toBe('plain question');
+  });
+
+  it('embeds extracted document text and persists the attachment metadata', async () => {
+    const harness = createHarness({ payloads: [payload()] });
+    harness.service.send({
+      conversationId: harness.conversation.id,
+      content: 'summarise',
+      attachmentIds: ['att-1'],
+    });
+    await harness.waitForTerminal();
+
+    const messages = harness.db.messages.listByConversation(harness.conversation.id);
+    const user = messages[0];
+    expect(user?.content).toContain('extracted body');
+    expect(user?.attachments).toHaveLength(1);
+    expect(user?.attachments[0]?.name).toBe('notes.md');
+    expect(user?.attachments[0]?.contentStatus).toBe('extracted');
+    // The provider receives the composed text.
+    expect(String(harness.captured.requests[0]?.turns.at(-1)?.content)).toContain('extracted body');
+  });
+
+  it('allows an attachment-only message with no text', async () => {
+    const harness = createHarness({ payloads: [payload()] });
+    harness.service.send({
+      conversationId: harness.conversation.id,
+      content: '',
+      attachmentIds: ['att-1'],
+    });
+    await harness.waitForTerminal();
+    const messages = harness.db.messages.listByConversation(harness.conversation.id);
+    expect(messages[0]?.content).toContain('extracted body');
+  });
+
+  it('refuses an image on a model without image support, naming the model', () => {
+    // DeepSeek Chat is a text-only catalogue entry.
+    const harness = createHarness({ payloads: [imagePayload()] });
+    expect(() =>
+      harness.service.send({
+        conversationId: harness.conversation.id,
+        content: 'what is this',
+        attachmentIds: ['img-1'],
+      }),
+    ).toThrowError(/cannot read images.*DeepSeek Chat|DeepSeek Chat.*cannot read images/i);
+    expect(harness.db.messages.listByConversation(harness.conversation.id)).toHaveLength(0);
+  });
+
+  it('sends an image as a content part to a vision model', async () => {
+    const harness = createHarness({
+      kind: 'openai',
+      modelId: 'gpt-4o',
+      payloads: [imagePayload()],
+    });
+    harness.service.send({
+      conversationId: harness.conversation.id,
+      content: 'what is this',
+      attachmentIds: ['img-1'],
+    });
+    await harness.waitForTerminal();
+
+    const content = harness.captured.requests[0]?.turns.at(-1)?.content;
+    expect(Array.isArray(content)).toBe(true);
+    const parts = content as Array<{ type: string; text?: string }>;
+    expect(parts[0]).toEqual({ type: 'text', text: 'what is this' });
+    expect(parts[1]).toEqual({ type: 'image', mimeType: 'image/png', dataBase64: 'AAAA' });
+  });
+
+  it('fails before writing when an attachment id is unknown', () => {
+    const harness = createHarness({ payloads: [] });
+    expect(() =>
+      harness.service.send({
+        conversationId: harness.conversation.id,
+        content: 'hi',
+        attachmentIds: ['missing'],
+      }),
+    ).toThrowError(/not_found|no longer|not found/i);
+    expect(harness.db.messages.listByConversation(harness.conversation.id)).toHaveLength(0);
+  });
+
+  it('releases the pending payloads once the turn has been delivered', async () => {
+    const harness = createHarness({ payloads: [payload()] });
+    harness.service.send({
+      conversationId: harness.conversation.id,
+      content: 'summarise',
+      attachmentIds: ['att-1'],
+    });
+    await harness.waitForTerminal();
+    expect(harness.released).toEqual(['att-1']);
+  });
+
+  it('keeps the pending payloads when the turn fails, so a retry still resolves them', async () => {
+    const harness = createHarness({
+      payloads: [payload()],
+      run: async () => {
+        throw new AppError(appError('invalid_key', 'The provider rejected the API key.', { status: 401 }));
+      },
+    });
+    harness.service.send({
+      conversationId: harness.conversation.id,
+      content: 'summarise',
+      attachmentIds: ['att-1'],
+    });
+    const terminal = await harness.waitForTerminal();
+    expect(terminal.type).toBe('error');
+    expect(harness.released).toEqual([]);
   });
 });

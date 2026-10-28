@@ -14,6 +14,7 @@
  */
 import type {
   ChatCompletionRequest,
+  ChatContentPart,
   ChatStreamChunk,
   DiscoveredModel,
   HttpRequestSpec,
@@ -76,14 +77,40 @@ const CONTEXT_LENGTH_PATTERN =
 const NON_CHAT_MODEL_PATTERN =
   /(^|[-_/])(embedding|embeddings|whisper|tts|dall-e|moderation|image|images|sora|transcribe|realtime|audio|speech|rerank|ocr)([-_/]|$)/i;
 
-function buildMessages(request: ChatCompletionRequest): Array<{ role: string; content: string }> {
-  const messages: Array<{ role: string; content: string }> = [];
+/**
+ * OpenAI chat messages. A text-only turn keeps the plain-string form, which is
+ * what every stored conversation already contains; a turn with an image becomes
+ * the content-part array the API documents.
+ */
+type OpenAiMessageContent =
+  | string
+  | Array<
+      | { type: 'text'; text: string }
+      | { type: 'image_url'; image_url: { url: string; detail?: 'auto' } }
+    >;
+
+function toOpenAiContent(content: string | ChatContentPart[]): OpenAiMessageContent {
+  if (typeof content === 'string') return content;
+  return content.map((part) =>
+    part.type === 'text'
+      ? { type: 'text' as const, text: part.text }
+      : {
+          type: 'image_url' as const,
+          image_url: { url: `data:${part.mimeType};base64,${part.dataBase64}`, detail: 'auto' as const },
+        },
+  );
+}
+
+function buildMessages(
+  request: ChatCompletionRequest,
+): Array<{ role: string; content: OpenAiMessageContent }> {
+  const messages: Array<{ role: string; content: OpenAiMessageContent }> = [];
   const system = request.system;
   if (system !== null && system.trim().length > 0) {
     messages.push({ role: 'system', content: system });
   }
   for (const turn of request.turns) {
-    messages.push({ role: turn.role, content: turn.content });
+    messages.push({ role: turn.role, content: toOpenAiContent(turn.content) });
   }
   return messages;
 }

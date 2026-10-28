@@ -6,8 +6,18 @@
  * (the shared resolver has already decided the model supports them); top-k is
  * not part of this API, so it is never mapped onto another sampling parameter.
  */
-import type { ProviderAdapter } from '@shared/provider-contract';
+import type {
+  HttpRequestSpec,
+  ProviderAdapter,
+  ProviderRuntime,
+  TranscriptionAdapter,
+  TranscriptionParseResult,
+  TranscriptionRequest,
+} from '@shared/provider-contract';
+import { appError } from '@shared/errors';
+import { joinUrl } from '@shared/url-policy';
 import { PROVIDER_PRESETS } from '@shared/defaults';
+import { buildMultipartBody } from './multipart';
 import {
   buildOpenAiChatSpec,
   buildOpenAiModelsRequest,
@@ -18,6 +28,101 @@ import {
   parseOpenAiTestResponse,
   type OpenAiFamilyProfile,
 } from './openaiFamily';
+
+/**
+ * OpenAI is the only provider in this release with a documented transcription
+ * endpoint, so this is the only adapter that implements `transcription`. Its
+ * absence on every other provider is what the UI reports when no OpenAI key is
+ * configured — never a fabricated transcript.
+ */
+const OPENAI_TRANSCRIPTION_MODEL = 'whisper-1';
+
+function buildOpenAiTranscriptionRequest(
+  runtime: ProviderRuntime,
+  request: TranscriptionRequest,
+): HttpRequestSpec {
+  const key = runtime.apiKey.trim();
+  if (key.length === 0) {
+    throw new Error('missing_key');
+  }
+  const body = buildMultipartBody(
+    {
+      field: 'file',
+      filename: request.filename,
+      contentType: request.mimeType,
+      data: request.audio,
+    },
+    [
+      { field: 'model', value: request.model || OPENAI_TRANSCRIPTION_MODEL },
+      { field: 'response_format', value: 'json' },
+    ],
+  );
+  return {
+    url: joinUrl(runtime.baseUrl, 'audio/transcriptions'),
+    method: 'POST',
+    headers: {
+      // The key is in the header only, never in the URL or the body.
+      Authorization: `Bearer ${key}`,
+      'Content-Type': body.contentType,
+    },
+    body: null,
+    bodyBytes: body.bytes,
+  };
+}
+
+function parseOpenAiTranscription(
+  status: number,
+  body: string,
+  providerId: string,
+): TranscriptionParseResult {
+  if (status < 200 || status >= 300) {
+    return { text: null, error: parseOpenAiError(status, body, providerId) };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return {
+      text: null,
+      error: appError('provider_error', 'The transcription response was not valid JSON.', {
+        providerId,
+        status,
+      }),
+    };
+  }
+  if (
+    typeof parsed !== 'object' ||
+    parsed === null ||
+    !('text' in parsed) ||
+    typeof (parsed as { text: unknown }).text !== 'string'
+  ) {
+    return {
+      text: null,
+      error: appError('provider_error', 'The transcription response contained no text.', {
+        providerId,
+        status,
+      }),
+    };
+  }
+  const text = (parsed as { text: string }).text.trim();
+  if (text.length === 0) {
+    return {
+      text: null,
+      error: appError(
+        'provider_error',
+        'The transcription came back empty — the recording may contain no speech.',
+        { providerId, status },
+      ),
+    };
+  }
+  return { text, error: null };
+}
+
+const OPENAI_TRANSCRIPTION: TranscriptionAdapter = {
+  defaultModel: OPENAI_TRANSCRIPTION_MODEL,
+  buildTranscriptionRequest: buildOpenAiTranscriptionRequest,
+  parseTranscriptionResponse: parseOpenAiTranscription,
+};
 
 const OPENAI_PROFILE: OpenAiFamilyProfile = {
   kind: 'openai',
@@ -42,5 +147,6 @@ export function createOpenAiAdapter(): ProviderAdapter {
     createResponseParser: (stream) =>
       stream ? createOpenAiStreamParser() : createOpenAiBufferedParser(),
     parseError: (status, body, providerId) => parseOpenAiError(status, body, providerId),
+    transcription: OPENAI_TRANSCRIPTION,
   };
 }

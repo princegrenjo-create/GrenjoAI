@@ -4,7 +4,18 @@
  * and no network anywhere.
  */
 import { vi, type Mock } from 'vitest';
-import type { DesktopApi } from '@shared/api';
+import type {
+  AttachmentBytesInput,
+  DesktopApi,
+  TranscriptionInput,
+  TranscriptionStatus,
+} from '@shared/api';
+import type {
+  AttachmentKind,
+  AttachmentMeta,
+  AttachmentPickResult,
+  TranscriptionResult,
+} from '@shared/attachments';
 import { DEFAULT_SETTINGS } from '@shared/defaults';
 import { mergeSettings } from '@shared/settings';
 import type {
@@ -50,10 +61,45 @@ export function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
     error: null,
     usage: null,
     modelRef: null,
+    attachments: [],
     createdAt: '2026-10-28T10:01:00.000Z',
     updatedAt: '2026-10-28T10:01:00.000Z',
     ...overrides,
   };
+}
+
+export function makeAttachment(overrides: Partial<AttachmentMeta> = {}): AttachmentMeta {
+  return {
+    id: 'att-1',
+    kind: 'text',
+    name: 'notes.txt',
+    mimeType: 'text/plain',
+    sizeBytes: 128,
+    contentStatus: 'extracted',
+    contentNote: null,
+    extractedChars: 128,
+    sentToProvider: true,
+    imageWidth: null,
+    imageHeight: null,
+    previewDataUrl: null,
+    durationMs: null,
+    createdAt: '2026-10-28T10:00:00.000Z',
+    ...overrides,
+  };
+}
+
+/** Kind the fake ingest derives from the bytes the renderer handed over. */
+function kindForMimeType(mimeType: string, kindHint?: 'image' | 'file'): AttachmentKind {
+  if (kindHint === 'image' || mimeType.startsWith('image/')) return 'image';
+  if (mimeType.startsWith('audio/')) return 'audio';
+  if (mimeType.startsWith('text/') || mimeType === 'application/json') return 'text';
+  return 'unsupported';
+}
+
+/** Bytes represented by a base64 string, without decoding it. */
+function base64ByteLength(dataBase64: string): number {
+  const padding = dataBase64.endsWith('==') ? 2 : dataBase64.endsWith('=') ? 1 : 0;
+  return Math.max(0, Math.floor((dataBase64.length * 3) / 4) - padding);
 }
 
 export function makeModel(overrides: Partial<ModelDescriptor> = {}): ModelDescriptor {
@@ -113,10 +159,18 @@ export interface FakeApi {
     chatSend: Mock;
     chatStop: Mock;
     openExternal: Mock;
+    attachmentsPick: Mock;
+    attachmentsIngestBytes: Mock;
+    attachmentsRemove: Mock;
+    attachmentsReadImage: Mock;
+    attachmentsTranscribe: Mock;
+    attachmentsTranscriptionStatus: Mock;
   };
   /** Push a chat stream event to every subscribed listener. */
   emit(event: ChatStreamEvent): void;
   conversations: Conversation[];
+  /** Attachments the fake attachment service is holding, by id. */
+  attachmentStore: Map<string, AttachmentMeta>;
   listenerCount(): number;
 }
 
@@ -216,6 +270,59 @@ export function createFakeApi(options: FakeApiOptions = {}): FakeApi {
     void url;
   });
 
+  /*
+   * Attachments behave like the real main-process service at the level the
+   * renderer can observe: ingestBytes allocates an id and answers with display
+   * metadata, remove forgets it, and pick answers with an empty selection until
+   * a test stubs it. Nothing here reads a real file.
+   */
+  const attachmentStore = new Map<string, AttachmentMeta>();
+  let attachmentCounter = 0;
+
+  const pick = vi.fn(async (): Promise<AttachmentPickResult> => ({
+    attachments: [],
+    rejected: [],
+    cancelled: false,
+  }));
+
+  const ingestBytes = vi.fn(async (input: AttachmentBytesInput): Promise<AttachmentPickResult> => {
+    attachmentCounter += 1;
+    const meta = makeAttachment({
+      id: `att-new-${attachmentCounter}`,
+      kind: kindForMimeType(input.mimeType, input.kindHint),
+      name: input.name,
+      mimeType: input.mimeType,
+      sizeBytes: base64ByteLength(input.dataBase64),
+    });
+    attachmentStore.set(meta.id, meta);
+    return { attachments: [meta], rejected: [], cancelled: false };
+  });
+
+  const getAttachment = vi.fn(async (id: string): Promise<AttachmentMeta | null> => {
+    return attachmentStore.get(id) ?? null;
+  });
+
+  const removeAttachment = vi.fn(async (id: string): Promise<void> => {
+    attachmentStore.delete(id);
+  });
+
+  const readImage = vi.fn(async (id: string): Promise<{ dataUrl: string }> => ({
+    dataUrl: `data:image/png;base64,preview-${id}`,
+  }));
+
+  const transcribe = vi.fn(async (input: TranscriptionInput): Promise<TranscriptionResult> => ({
+    text: 'A short spoken note.',
+    providerId: 'provider-1',
+    modelId: 'whisper-1',
+    durationMs: input.durationMs,
+  }));
+
+  const transcriptionStatus = vi.fn(async (): Promise<TranscriptionStatus> => ({
+    available: true,
+    providerName: 'OpenAI',
+    reason: null,
+  }));
+
   const api: DesktopApi = {
     conversations: {
       list: listConversations,
@@ -228,6 +335,15 @@ export function createFakeApi(options: FakeApiOptions = {}): FakeApi {
       list: vi.fn(async (conversationId: string) => messages.get(conversationId) ?? []),
     },
     chat: { send, stop, onEvent },
+    attachments: {
+      pick,
+      ingestBytes,
+      get: getAttachment,
+      remove: removeAttachment,
+      readImage,
+      transcribe,
+      transcriptionStatus,
+    },
     providers: {
       list: vi.fn(async () => options.providers ?? []),
       upsert: vi.fn(async () => notStubbed('providers.upsert')),
@@ -290,6 +406,7 @@ export function createFakeApi(options: FakeApiOptions = {}): FakeApi {
   return {
     api,
     conversations,
+    attachmentStore,
     mocks: {
       getConversation,
       listConversations,
@@ -300,6 +417,12 @@ export function createFakeApi(options: FakeApiOptions = {}): FakeApi {
       chatSend: send,
       chatStop: stop,
       openExternal,
+      attachmentsPick: pick,
+      attachmentsIngestBytes: ingestBytes,
+      attachmentsRemove: removeAttachment,
+      attachmentsReadImage: readImage,
+      attachmentsTranscribe: transcribe,
+      attachmentsTranscriptionStatus: transcriptionStatus,
     },
     emit(event) {
       for (const listener of [...listeners]) listener(event);

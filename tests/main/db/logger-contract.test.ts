@@ -2,7 +2,8 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Logger } from '@main/logger';
 import { openDatabase, type DbLogger } from '@main/db/index';
-import { TestDatabase } from './helpers';
+import { MIGRATIONS } from '@main/db/migrations';
+import { LATEST_SCHEMA_VERSION, TestDatabase } from './helpers';
 
 /**
  * Compile-time proof that the main-process logger satisfies the database logger
@@ -39,9 +40,13 @@ describe('logger integration', () => {
 
     const database = openDatabase(path.join(t.directory, 'with-logger.db'), { logger });
     try {
-      expect(database.migrations.version()).toBe(1);
+      expect(database.migrations.version()).toBe(LATEST_SCHEMA_VERSION);
       expect(info).toContain('SQLite connection opened.');
-      expect(info.some((line) => line.startsWith('Applied database migration 1'))).toBe(true);
+      for (const migration of MIGRATIONS) {
+        expect(
+          info.some((line) => line.startsWith(`Applied database migration ${migration.version}`)),
+        ).toBe(true);
+      }
     } finally {
       database.close();
     }
@@ -51,6 +56,6 @@ describe('logger integration', () => {
   it('falls back to the in-memory ring when no logger is supplied', () => {
     // TestDatabase opens without options; construction alone must not throw and
     // the database must be usable.
-    expect(t.db.migrations.version()).toBe(1);
+    expect(t.db.migrations.version()).toBe(LATEST_SCHEMA_VERSION);
   });
 });

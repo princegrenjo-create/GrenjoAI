@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DbError } from '@main/db/index';
-import { TestDatabase } from './helpers';
+import { LATEST_SCHEMA_VERSION, TestDatabase } from './helpers';
 
 let t: TestDatabase;
 
@@ -26,7 +26,7 @@ describe('transactions', () => {
     expect(t.db.conversations.count()).toBe(1);
     expect(t.db.conversations.list()).toHaveLength(1);
     expect(t.db.conversations.get(existing.id)?.title).toBe('Before');
-    expect(t.db.migrations.version()).toBe(1);
+    expect(t.db.migrations.version()).toBe(LATEST_SCHEMA_VERSION);
   });
 
   it('rethrows the original error type', () => {

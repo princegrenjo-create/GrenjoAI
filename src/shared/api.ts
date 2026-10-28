@@ -40,6 +40,11 @@ import type {
 } from './types';
 import type { DiscoveredModel as ProviderDiscoveredModel } from './provider-contract';
 import type { AppErrorShape } from './types';
+import type {
+  AttachmentMeta,
+  AttachmentPickResult,
+  TranscriptionResult,
+} from './attachments';
 
 /**
  * Every IPC call resolves to this envelope. `ipcMain.handle` can only
@@ -60,6 +65,50 @@ export interface ConversationsApi {
 
 export interface MessagesApi {
   list(conversationId: Id): Promise<ChatMessage[]>;
+}
+
+/**
+ * Attachments. The renderer never sees a filesystem path and never reads a file
+ * itself: the main process opens the picker, validates, reads and extracts, and
+ * hands back opaque ids plus display metadata.
+ */
+export interface AttachmentsApi {
+  /** Opens the native picker and ingests the chosen files. */
+  pick(): Promise<AttachmentPickResult>;
+  /** Ingests bytes the renderer already has (drag-and-drop, paste). */
+  ingestBytes(input: AttachmentBytesInput): Promise<AttachmentPickResult>;
+  /** Metadata for one pending attachment, or null when it is gone. */
+  get(id: Id): Promise<AttachmentMeta | null>;
+  /** Drops a pending attachment and its bytes. */
+  remove(id: Id): Promise<void>;
+  /** Re-reads an image for preview (also used for historical messages). */
+  readImage(id: Id): Promise<{ dataUrl: string }>;
+  /** Sends a recording to the configured transcription endpoint. */
+  transcribe(input: TranscriptionInput): Promise<TranscriptionResult>;
+  /** Providers that can transcribe, so the UI can explain a missing one. */
+  transcriptionStatus(): Promise<TranscriptionStatus>;
+}
+
+export interface AttachmentBytesInput {
+  name: string;
+  mimeType: string;
+  dataBase64: string;
+  /** True when the renderer read the file as an image (used for validation). */
+  kindHint?: 'image' | 'file';
+}
+
+export interface TranscriptionInput {
+  dataBase64: string;
+  mimeType: string;
+  durationMs: number;
+}
+
+export interface TranscriptionStatus {
+  available: boolean;
+  /** Provider name when available, for "transcribed by …". */
+  providerName: string | null;
+  /** Sentence explaining what to configure when it is not available. */
+  reason: string | null;
 }
 
 export interface ChatApi {
@@ -130,6 +179,7 @@ export interface AppApi {
 export interface DesktopApi {
   conversations: ConversationsApi;
   messages: MessagesApi;
+  attachments: AttachmentsApi;
   chat: ChatApi;
   providers: ProvidersApi;
   models: ModelsApi;
@@ -149,6 +199,14 @@ export const IPC = {
   conversationsRemove: 'conversations:remove',
 
   messagesList: 'messages:list',
+
+  attachmentsPick: 'attachments:pick',
+  attachmentsIngestBytes: 'attachments:ingest-bytes',
+  attachmentsGet: 'attachments:get',
+  attachmentsRemove: 'attachments:remove',
+  attachmentsReadImage: 'attachments:read-image',
+  attachmentsTranscribe: 'attachments:transcribe',
+  attachmentsTranscriptionStatus: 'attachments:transcription-status',
 
   chatSend: 'chat:send',
   chatStop: 'chat:stop',

@@ -1,7 +1,8 @@
 import { existsSync, statSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DbError, openDatabase } from '@main/db/index';
-import { PAST, TestDatabase } from './helpers';
+import { MIGRATIONS } from '@main/db/migrations';
+import { LATEST_SCHEMA_VERSION, MIGRATION_NAMES, PAST, TestDatabase } from './helpers';
 
 let t: TestDatabase;
 
@@ -14,14 +15,33 @@ afterEach(() => {
 });
 
 describe('schema and connection', () => {
-  it('creates the full schema on a fresh file and records version 1', () => {
-    expect(t.db.migrations.version()).toBe(1);
+  it('creates the full schema on a fresh file and records every migration', () => {
+    expect(t.db.migrations.version()).toBe(LATEST_SCHEMA_VERSION);
 
     const history = t.db.migrations.history();
-    expect(history).toHaveLength(1);
-    expect(history[0]?.version).toBe(1);
-    expect(history[0]?.name).toBe('initial-schema');
-    expect(history[0]?.appliedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    expect(history).toHaveLength(MIGRATION_NAMES.length);
+    expect(history.map((entry) => entry.name)).toEqual([...MIGRATION_NAMES]);
+    expect(history.map((entry) => entry.version)).toEqual(
+      MIGRATIONS.map((migration) => migration.version),
+    );
+    for (const entry of history) {
+      expect(entry.appliedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    }
+  });
+
+  it('adds the message attachments column with a non-null JSON default', () => {
+    const columns = t.db.sql.query<{
+      name: string;
+      type: string;
+      notnull: number;
+      dflt_value: string | null;
+    }>('PRAGMA table_info(messages)');
+
+    const attachments = columns.find((column) => column.name === 'attachments');
+    expect(attachments).toBeDefined();
+    expect(attachments?.type).toBe('TEXT');
+    expect(attachments?.notnull).toBe(1);
+    expect(attachments?.dflt_value).toBe("'[]'");
   });
 
   it('creates every table the repositories need', () => {
@@ -50,13 +70,14 @@ describe('schema and connection', () => {
   });
 
   it('is a no-op when the migration runner runs again on an up-to-date file', () => {
-    expect(t.db.migrations.version()).toBe(1);
+    expect(t.db.migrations.version()).toBe(LATEST_SCHEMA_VERSION);
     t.db.close();
 
     const reopened = openDatabase(t.filePath);
     try {
-      expect(reopened.migrations.version()).toBe(1);
-      expect(reopened.migrations.history()).toHaveLength(1);
+      expect(reopened.migrations.version()).toBe(LATEST_SCHEMA_VERSION);
+      expect(reopened.migrations.history()).toHaveLength(MIGRATION_NAMES.length);
+      expect(reopened.migrations.history().map((entry) => entry.name)).toEqual([...MIGRATION_NAMES]);
     } finally {
       reopened.close();
     }

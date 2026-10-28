@@ -22,6 +22,8 @@ Not a subscription product, not a marketplace, not multi-tenant. One user, one m
 | Area | What you get |
 |---|---|
 | **Chat** | Streaming conversations, Markdown with syntax-highlighted code, copy message/code, stop, retry, per-conversation model and agent |
+| **Attachments** | Attach files or images from the native picker or by dropping them on the composer; documents are read locally (TXT, Markdown, CSV, JSON, YAML, XML, source code, PDF, DOCX) and only their text is sent; images go inline to vision models |
+| **Voice** | Record a memo with a live timer, preview it, discard it, or transcribe it with OpenAI and put the text in the composer |
 | **Providers** | DeepSeek, OpenAI, Google Gemini, Anthropic, and any OpenAI-compatible endpoint — add several, each with its own key |
 | **Models** | Automatic discovery where the provider exposes a model-listing API, plus a **Others / Custom Models** section for models you add by hand |
 | **Generation** | Temperature, top-p, top-k, frequency/presence penalty, max output tokens, stop sequences, seed, reasoning effort — the ones a model does not support are disabled with the reason, never silently dropped |
@@ -78,6 +80,24 @@ Reinstalling, or installing a newer version over an older one, keeps everything 
    capabilities, limits, which parameters it honours.
 6. **Chat.** Pick the model in the composer, type, press Enter (Shift+Enter for a newline).
    Stop is available while a reply streams.
+
+### Attaching files, images and voice
+
+- **Attach file** opens the Windows file picker. Text documents are read on this machine and
+  their text is placed in the message, fenced with the filename — the model is told what came from
+  a file. PDF and DOCX are parsed with `unpdf` and `mammoth`; an encrypted or corrupt document is
+  reported as **"contents not read"** with the reason, never quietly dropped.
+- **Attach image** sends PNG/JPEG/WebP/GIF inline, in the format each provider documents
+  (`image_url`, Anthropic `image` blocks, Gemini `inlineData`). Only a model whose capabilities say
+  it accepts images will take one; otherwise the composer says so and refuses the send rather than
+  pretending the image was seen.
+- **Record voice** asks for the microphone once, shows a timer, and gives you Stop, Cancel, a
+  preview, and **Transcribe**. Transcription goes to OpenAI (`whisper-1`) and needs an **OpenAI API
+  key** — if none is configured the app tells you exactly that instead of failing silently.
+- Limits: 25 MB per file, 8 attachments per message, 60,000 extracted characters per document
+  (truncated with a marker), 8 MB per image, 5 minutes / 20 MB per recording.
+- The original files stay where they are. Document text is sent; image bytes are sent to the
+  provider you chose; nothing is uploaded until you actually send or press Transcribe.
 
 ---
 
@@ -245,6 +265,14 @@ See [docs/FEATURES.md](docs/FEATURES.md) for the full, current list. The ones th
 - **No local model execution.** Every request goes to a remote provider you configure.
 - **No agent autonomy.** Agents are configurable personas; there is no tool execution or shell access
   in this release, by design.
+- **Attachments are text-extraction, not vision-by-default.** A document is read as text; a scanned
+  PDF with no text layer yields an explicit "no text found" rather than OCR. Tables and layout are
+  flattened to plain text.
+- **Images need a vision-capable model.** DeepSeek's chat models do not accept images, so the
+  composer refuses to send one to them.
+- **Transcription depends on OpenAI.** It is the only provider in this release with a documented
+  transcription endpoint; without an OpenAI key the button explains what is missing rather than
+  guessing.
 - Search is `LIKE`-based, not full-text.
 - **Cloud sync ordering is not server-authoritative.** Conflict detection compares a per-device
   `version` counter and each device's own clock (`updated_at`). A device with a badly wrong clock can

@@ -26,6 +26,11 @@ export interface HttpRequestSpec {
   method: 'GET' | 'POST';
   headers: Record<string, string>;
   body: string | null;
+  /**
+   * Raw bytes for non-JSON bodies (multipart audio). When set, `body` is null
+   * and the transport sends these bytes with the headers given above.
+   */
+  bodyBytes?: Uint8Array | null;
 }
 
 export interface HttpResponseHeaders {
@@ -43,7 +48,8 @@ export interface HttpResponseLike {
 export interface FetchInitLike {
   method: string;
   headers: Record<string, string>;
-  body?: string;
+  /** UTF-8 request bodies and raw byte bodies (multipart audio) both go here. */
+  body?: string | Uint8Array;
   signal?: AbortSignal;
   /**
    * Always `'error'`: a provider endpoint that redirects is refused rather than
@@ -71,9 +77,23 @@ export interface ProviderRuntime {
   signal?: AbortSignal;
 }
 
+/**
+ * One piece of a user turn. Text-only conversations keep sending a plain string,
+ * so every existing adapter path and stored message is unchanged; a turn becomes
+ * an array only when an image is attached.
+ */
+export type ChatContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image'; mimeType: string; dataBase64: string };
+
 export interface ChatTurn {
   role: 'user' | 'assistant';
-  content: string;
+  content: string | ChatContentPart[];
+}
+
+/** True when any turn carries non-text content. */
+export function turnHasImages(turn: ChatTurn): boolean {
+  return Array.isArray(turn.content) && turn.content.some((part) => part.type === 'image');
 }
 
 export interface ChatCompletionRequest {
@@ -103,8 +123,7 @@ export interface ResponseParser {
   end(): ChatStreamChunk[];
 }
 
-export interface DiscoveredModel {
-  modelId: string;
+export interface DiscoveredModel {  modelId: string;
   displayName: string;
   description: string;
   capabilities: ModelCapabilities;
@@ -113,12 +132,45 @@ export interface DiscoveredModel {
   weirdnessSupported: boolean;
 }
 
+/* ------------------------------------------------------- transcription ----- */
+
+export interface TranscriptionRequest {
+  /** Recorded audio bytes. */
+  audio: Uint8Array;
+  /** MIME type of the recording, e.g. `audio/webm`. */
+  mimeType: string;
+  /** Filename used in the multipart part; providers use the extension. */
+  filename: string;
+  model: string;
+}
+
+export interface TranscriptionParseResult {
+  text: string | null;
+  error: AppErrorShape | null;
+}
+
+/**
+ * Optional capability: a provider that can turn recorded audio into text.
+ *
+ * Only OpenAI documents a transcription endpoint in this release, so only that
+ * adapter implements this. A missing `transcription` is a fact the UI reports
+ * ("configure an OpenAI key for transcription"), never a silent no-op.
+ */
+export interface TranscriptionAdapter {
+  /** Model id sent to the endpoint. */
+  readonly defaultModel: string;
+  buildTranscriptionRequest(runtime: ProviderRuntime, request: TranscriptionRequest): HttpRequestSpec;
+  parseTranscriptionResponse(status: number, body: string, providerId: string): TranscriptionParseResult;
+}
+
 export interface ProviderAdapter {
   readonly kind: ProviderKind;
   readonly label: string;
   /** Parameters this provider family can carry. */
   readonly supportedParams: readonly GenParamKey[];
   readonly supportsModelDiscovery: boolean;
+  /** Present only when the provider can transcribe recorded audio. */
+  readonly transcription?: TranscriptionAdapter;
 
   /** Cheap authenticated probe, e.g. GET /models with a one-model limit. */
   buildTestRequest(runtime: ProviderRuntime): HttpRequestSpec;

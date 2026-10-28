@@ -13,6 +13,11 @@
  * chat store references it by id.
  */
 import { create } from 'zustand';
+import {
+  toMessageAttachment,
+  type AttachmentMeta,
+  type MessageAttachment,
+} from '@shared/attachments';
 import { DEFAULT_SETTINGS } from '@shared/defaults';
 import { toAppError } from '@shared/errors';
 import type {
@@ -211,6 +216,8 @@ export interface ChatEntry {
   status: MessageStatus;
   error: AppErrorShape | null;
   usage: TokenUsage | null;
+  /** Attachments that belonged to this turn; empty for text-only messages. */
+  attachments: MessageAttachment[];
   seq: number;
   createdAt: string;
 }
@@ -237,7 +244,14 @@ interface ChatState {
   open(conversationId: string): Promise<void>;
   reload(): Promise<void>;
   close(): void;
-  send(content: string): Promise<void>;
+  /**
+   * Sends a turn. Attachments are passed as the display metadata the composer
+   * already holds; their ids travel to the main process in the same order, and
+   * the same order is what the sent message shows. Resolves false when the turn
+   * was refused (no conversation, a send already in flight, or nothing to send),
+   * so the composer knows whether it may clear its attachment list.
+   */
+  send(content: string, attachments?: AttachmentMeta[]): Promise<boolean>;
   stop(): Promise<void>;
   retryLast(): Promise<void>;
   setModel(providerId: string | null, modelId: string | null): Promise<void>;
@@ -256,6 +270,7 @@ function fromMessage(message: ChatMessage): ChatEntry {
     status: message.status,
     error: message.error,
     usage: message.usage,
+    attachments: message.attachments,
     seq: message.seq,
     createdAt: message.createdAt,
   };
@@ -348,11 +363,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
   },
 
-  async send(content) {
+  async send(content, attachments = []) {
     const state = get();
     const conversationId = state.conversationId;
     const text = content.trim();
-    if (!conversationId || state.isSending || text.length === 0) return;
+    if (!conversationId || state.isSending) return false;
+    // A message is sendable with text, with attachments, or with both: an image
+    // or a document is a complete turn on its own.
+    if (text.length === 0 && attachments.length === 0) return false;
+    const attachmentIds = attachments.map((attachment) => attachment.id);
 
     localSequence += 1;
     const userLocalId = `local-user-${localSequence}`;
@@ -368,6 +387,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       status: 'complete',
       error: null,
       usage: null,
+      attachments: attachments.map(toMessageAttachment),
       seq: baseSeq,
       createdAt: now,
     };
@@ -378,6 +398,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       status: 'streaming',
       error: null,
       usage: null,
+      attachments: [],
       seq: baseSeq + 1,
       createdAt: now,
     };
@@ -390,12 +411,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
 
     try {
-      const result = await getApi().chat.send({ conversationId, content: text });
+      const result = await getApi().chat.send({
+        conversationId,
+        content: text,
+        ...(attachmentIds.length > 0 ? { attachmentIds } : {}),
+      });
       const pending = get().pending;
       if (pending && pending.assistantLocalId === assistantLocalId) {
         set({ pending: { ...pending, requestId: result.requestId } });
       }
       if (get().pending) set({ activeRequestId: result.requestId });
+      return true;
     } catch (error) {
       const shaped = toAppError(error);
       set((current) => ({
@@ -404,6 +430,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         activeRequestId: null,
         pending: null,
       }));
+      return false;
     }
   },
 
@@ -423,7 +450,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
     for (let index = entries.length - 1; index >= 0; index -= 1) {
       const entry = entries[index];
       if (entry && entry.role === 'user') {
-        await get().send(entry.content);
+        // Replay the attachments too, so retrying an attachment-only turn is not
+        // an empty send. The main process owns the bytes; an id it has already
+        // dropped comes back as a normal, reported error rather than a silent one.
+        const replay: AttachmentMeta[] = entry.attachments.map((attachment) => ({
+          ...attachment,
+          previewDataUrl: null,
+        }));
+        await get().send(entry.content, replay);
         return;
       }
     }

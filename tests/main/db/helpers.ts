@@ -11,6 +11,7 @@ import path from 'node:path';
 import type { Database } from '@shared/repository-contract';
 import type { ProviderConfig } from '@shared/types';
 import { openDatabase } from '@main/db/index';
+import { MIGRATIONS } from '@main/db/migrations';
 
 function workspaceRoot(): string {
   let directory = process.cwd();
@@ -67,3 +68,12 @@ export function seedProvider(db: Database, name = 'Test endpoint'): ProviderConf
 
 export const PAST = '2000-01-01T00:00:00.000Z';
 export const FUTURE = '2999-01-01T00:00:00.000Z';
+
+/**
+ * The schema version this build produces. Tests assert against this instead of a
+ * hardcoded number so adding migration 3 does not break every DB test at once.
+ */
+export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]?.version ?? 0;
+
+/** Migration `name` values in application order. */
+export const MIGRATION_NAMES: readonly string[] = MIGRATIONS.map((migration) => migration.name);

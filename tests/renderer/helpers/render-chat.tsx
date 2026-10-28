@@ -17,6 +17,9 @@ export interface ChatHarness {
   conversation: Conversation;
   sendButton(): HTMLElement;
   textarea(): HTMLElement;
+  attachFileButton(): HTMLElement;
+  attachImageButton(): HTMLElement;
+  recordButton(): HTMLElement;
 }
 
 export interface RenderConversationOptions {
@@ -47,6 +50,9 @@ export async function renderConversation(
     conversation,
     sendButton: () => screen.getByRole('button', { name: 'Send message' }),
     textarea: () => screen.getByLabelText('Message'),
+    attachFileButton: () => screen.getByRole('button', { name: 'Attach file' }),
+    attachImageButton: () => screen.getByRole('button', { name: 'Attach image' }),
+    recordButton: () => screen.getByRole('button', { name: 'Record voice' }),
   };
 }
 

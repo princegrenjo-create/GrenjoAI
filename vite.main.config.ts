@@ -23,6 +23,11 @@ export default defineConfig({
     rollupOptions: {
       external: [
         'electron',
+        // Document parsers stay external and are loaded lazily, so a chat-only
+        // session never pays for pdfjs or the OOXML reader. electron-builder
+        // ships them inside the asar because they are production dependencies.
+        'mammoth',
+        'unpdf',
         'node:sqlite',
         'node:crypto',
         'node:fs',

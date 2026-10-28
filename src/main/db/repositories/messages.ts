@@ -26,7 +26,7 @@ import { toChatMessage } from '../rows';
 import { BaseRepository, dirtyFlag } from './base';
 
 const MESSAGE_COLUMNS = `id, conversation_id, role, content, seq, status, error_json, usage_json, model_json,
-  version, dirty, attempts, next_attempt_at, last_error, created_at, updated_at, deleted_at`;
+  attachments, version, dirty, attempts, next_attempt_at, last_error, created_at, updated_at, deleted_at`;
 
 export class SqliteMessageRepository extends BaseRepository implements MessageRepository {
   listByConversation(conversationId: Id): ChatMessage[] {
@@ -66,11 +66,15 @@ export class SqliteMessageRepository extends BaseRepository implements MessageRe
 
       const id = newId();
       const now = nowIso();
+      // Attachment metadata is JSON, never bytes: history stays small and the
+      // profile folder stays movable. `[]` is the explicit default, matching the
+      // column default migration 2 installs.
+      const attachments = JSON.stringify(input.attachments ?? []);
       this.sql.run(
         `INSERT INTO messages
            (id, conversation_id, role, content, seq, status, error_json, usage_json, model_json,
-            version, dirty, attempts, next_attempt_at, last_error, created_at, updated_at, deleted_at)
-         VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, 1, ?, 0, NULL, NULL, ?, ?, NULL)`,
+            attachments, version, dirty, attempts, next_attempt_at, last_error, created_at, updated_at, deleted_at)
+         VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, 1, ?, 0, NULL, NULL, ?, ?, NULL)`,
         [
           id,
           input.conversationId,
@@ -79,6 +83,7 @@ export class SqliteMessageRepository extends BaseRepository implements MessageRe
           seq,
           input.status ?? 'complete',
           jsonOrNull(input.modelRef ?? null),
+          attachments,
           dirtyFlag(options),
           now,
           now,
@@ -115,6 +120,10 @@ export class SqliteMessageRepository extends BaseRepository implements MessageRe
     if (patch.usage !== undefined) {
       assignments.push('usage_json = ?');
       params.push(jsonOrNull(patch.usage));
+    }
+    if (patch.attachments !== undefined) {
+      assignments.push('attachments = ?');
+      params.push(JSON.stringify(patch.attachments));
     }
     assignments.push('version = version + 1', 'updated_at = ?', 'dirty = ?');
     params.push(nowIso(), dirtyFlag(options), id);

@@ -82,6 +82,7 @@ function harness(store: Database) {
     logger: createNullLogger(),
     isOnline: () => true,
     flushIntervalMs: 0,
+    attachments: { resolve: () => [], release: () => undefined },
   });
 
   return { credentials, provider, service, events, requests };
@@ -192,6 +193,7 @@ describe('chat service against the real database', () => {
       logger: createNullLogger(),
       isOnline: () => true,
       flushIntervalMs: 0,
+      attachments: { resolve: () => [], release: () => undefined },
     });
     const conversation = store.conversations.create({
       title: 'Failure',

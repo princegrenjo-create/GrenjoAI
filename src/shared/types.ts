@@ -5,6 +5,8 @@
  * web/mobile clients that reuse this data model.
  */
 
+import type { MessageAttachment } from './attachments';
+
 /* ------------------------------------------------------------------ ids ---- */
 
 export type Id = string;
@@ -181,6 +183,12 @@ export interface ChatMessage {
   error: AppErrorShape | null;
   usage: TokenUsage | null;
   modelRef: ModelRef | null;
+  /**
+   * Files and images that belonged to this message. Empty for every message
+   * created before attachments existed, which is why it is defaulted rather
+   * than optional.
+   */
+  attachments: MessageAttachment[];
   createdAt: string;
   updatedAt: string;
 }
@@ -423,6 +431,8 @@ export interface AppErrorShape {
 export interface ChatSendInput {
   conversationId: Id;
   content: string;
+  /** Opaque ids returned by the attachment service. Resolved in the main process. */
+  attachmentIds?: Id[];
   /** Optional per-send overrides; empty means "use resolved precedence". */
   modelRef?: ModelRef;
   paramsOverride?: GenerationParams;

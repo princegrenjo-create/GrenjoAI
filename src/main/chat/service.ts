@@ -38,6 +38,15 @@ import type { CredentialStore } from '../credentials';
 import type { Logger } from '../logger';
 import { resolveModel } from '../models/catalog';
 import { readProviderKey, resolveRequestEndpoint } from '../models/endpoint-policy';
+import {
+  ATTACHMENT_LIMITS,
+  formatBytes,
+  toMessageAttachment,
+  type AttachmentPayload,
+  type MessageAttachment,
+  type PendingAttachmentResolver,
+} from '@shared/attachments';
+import type { ChatContentPart } from '@shared/provider-contract';
 
 export interface ChatServiceDeps {
   db: Database;
@@ -48,6 +57,8 @@ export interface ChatServiceDeps {
   emit: (event: ChatStreamEvent) => void;
   logger: Logger;
   isOnline: () => boolean;
+  /** Resolves the opaque ids the renderer sends into bytes and extracted text. */
+  attachments: PendingAttachmentResolver;
   /** Overridable for tests. */
   flushIntervalMs?: number;
   retryBackoffMs?: number;
@@ -71,6 +82,60 @@ interface ActiveRun {
 }
 
 const TITLE_MAX = 60;
+
+/**
+ * Turns the user's text plus extracted document text into the single text part
+ * that is sent to the model.
+ *
+ * Document text is fenced with an explicit header naming the file, so the model —
+ * and a person reading the request — can tell what came from the user and what
+ * came from a file. A file whose contents were not extracted is named with the
+ * reason instead of being silently dropped: an attachment the model never saw
+ * must never look like one it did.
+ */
+export function composeUserText(base: string, payloads: readonly AttachmentPayload[]): string {
+  const parts: string[] = [];
+  const trimmed = base.trim();
+  if (trimmed.length > 0) parts.push(trimmed);
+
+  for (const payload of payloads) {
+    const { meta } = payload;
+    if (meta.kind === 'image') {
+      // Images travel as their own content part, not as text.
+      continue;
+    }
+    if (payload.text !== null && payload.text.trim().length > 0) {
+      parts.push(
+        [
+          `--- Attached file: ${meta.name} (${meta.mimeType || 'unknown type'}, ${formatBytes(meta.sizeBytes)}) ---`,
+          payload.text.trim(),
+          `--- End of ${meta.name} ---`,
+        ].join('\n'),
+      );
+      continue;
+    }
+    parts.push(
+      `[Attached file: ${meta.name} (${meta.mimeType || 'unknown type'}, ${formatBytes(
+        meta.sizeBytes,
+      )}) — contents not included${meta.contentNote ? `: ${meta.contentNote}` : '.'}]`,
+    );
+  }
+
+  return parts.join('\n\n');
+}
+
+/** The image parts for a turn, bounded by the per-message limit. */
+function imageParts(payloads: readonly AttachmentPayload[]): ChatContentPart[] {
+  return payloads
+    .filter((payload) => payload.meta.kind === 'image' && payload.image !== null)
+    .slice(0, ATTACHMENT_LIMITS.maxPerMessage)
+    .map((payload) => ({
+      type: 'image' as const,
+      mimeType: payload.image?.mimeType ?? payload.meta.mimeType,
+      dataBase64: payload.image?.dataBase64 ?? '',
+    }))
+    .filter((part) => part.dataBase64.length > 0);
+}
 
 function deriveTitle(content: string): string {
   const flat = content.replace(/\s+/g, ' ').trim();
@@ -185,6 +250,30 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
     const systemPrompt =
       input.systemPromptOverride ?? conversation.systemPrompt ?? agent?.systemPrompt ?? null;
 
+    // Attachments are resolved before anything is written, so an unknown id
+    // fails the send cleanly instead of leaving a half-sent message. The count
+    // check matters: a resolver that silently drops an id would otherwise send a
+    // message that looks like it had an attachment when it did not.
+    const requestedIds = input.attachmentIds ?? [];
+    const payloads = requestedIds.length > 0 ? deps.attachments.resolve(requestedIds) : [];
+    if (payloads.length !== requestedIds.length) {
+      throw new AppError(
+        appError(
+          'not_found',
+          'One of the attachments is no longer available. Remove it and attach the file again.',
+        ),
+      );
+    }
+    const images = imageParts(payloads);
+    if (images.length > 0 && !resolved.model.capabilities.imageInput) {
+      throw new AppError(
+        appError(
+          'bad_request',
+          `${resolved.model.displayName} cannot read images. Choose a model that accepts image input, or remove the image before sending.`,
+        ),
+      );
+    }
+
     return {
       conversation,
       agent,
@@ -195,6 +284,9 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
       settings: current,
       params: resolvedParams,
       systemPrompt,
+      payloads,
+      images,
+      attachments: payloads.map((payload) => toMessageAttachment(payload.meta)),
     };
   }
 
@@ -256,10 +348,18 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
       const request: ChatCompletionRequest = {
         modelId: model.modelId,
         system: systemPrompt && systemPrompt.trim().length > 0 ? systemPrompt : null,
-        turns: turns.map((turn) => ({
-          role: turn.role === 'assistant' ? 'assistant' : 'user',
-          content: turn.content,
-        })),
+        turns: turns.map((turn, index) => {
+          const isLast = index === turns.length - 1;
+          const withImages = isLast && turn.role === 'user' && context.images.length > 0;
+          if (!withImages) {
+            return { role: turn.role === 'assistant' ? 'assistant' : 'user', content: turn.content };
+          }
+          // Only the turn being sent carries image bytes. Older turns are
+          // replayed as the text that was persisted, so a long conversation does
+          // not re-upload every image it ever contained.
+          const parts: ChatContentPart[] = [{ type: 'text', text: turn.content }, ...context.images];
+          return { role: 'user' as const, content: parts };
+        }),
         params: params.values,
         stream: current.chat.streaming,
         baseUrlOverride: model.baseUrlOverride,
@@ -335,6 +435,16 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
         chars: finalText.length,
         finishReason: normaliseFinish(finishReason),
       });
+      // The turn is persisted and delivered, so the pending payloads (and their
+      // on-disk mirror) are no longer needed. Released only on success: after a
+      // failure the composer keeps its chips and a retry must still resolve them.
+      if (context.payloads.length > 0) {
+        try {
+          deps.attachments.release(context.payloads.map((payload) => payload.meta.id));
+        } catch (error) {
+          log.warn('Could not release the attachment payloads', { error });
+        }
+      }
     } catch (error) {
       const aborted = run.controller.signal.aborted;
       const shape = aborted ? appError('cancelled', 'Generation stopped.') : toAppError(error, 'provider_error');
@@ -397,19 +507,24 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
       }
 
       const content = input.content.trim();
-      if (content.length === 0) {
+      if (content.length === 0 && (input.attachmentIds?.length ?? 0) === 0) {
         throw new AppError(appError('validation', 'The message is empty.'));
       }
 
       // Everything that can fail validation fails before the first write, so a
       // rejected send leaves no orphan user message behind.
       const context = resolveSendContext(input);
+      const composedText = composeUserText(content, context.payloads);
+      if (composedText.trim().length === 0) {
+        throw new AppError(appError('validation', 'The message is empty.'));
+      }
 
       const requestId = crypto.randomUUID();
       const userMessage = db.messages.append({
         conversationId,
         role: 'user',
-        content,
+        content: composedText,
+        attachments: context.attachments as MessageAttachment[],
         status: 'complete',
       });
 
@@ -427,7 +542,7 @@ export function createChatService(deps: ChatServiceDeps): ChatService {
         context.settings.chat.autoTitleFromFirstMessage &&
         db.messages.countByConversation(conversationId) <= 2
       ) {
-        const title = deriveTitle(content);
+        const title = deriveTitle(content.length > 0 ? content : composedText);
         // `autoTitle` only writes when the conversation still carries the default
         // title, so a name the user typed is never clobbered by the first message.
         if (title.length > 0) db.conversations.autoTitle(conversationId, title);

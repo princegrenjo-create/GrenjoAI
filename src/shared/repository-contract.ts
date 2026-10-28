@@ -32,6 +32,7 @@ import type {
   TokenUsage,
   AppErrorShape,
 } from './types';
+import type { MessageAttachment } from './attachments';
 
 /** A value bindable to a SQLite statement. */
 export type SqlValue = string | number | null | Uint8Array;
@@ -83,6 +84,11 @@ export interface AppendMessageInput {
   content: string;
   status?: MessageStatus;
   modelRef?: { providerId: Id; modelId: string } | null;
+  /**
+   * Files and images that belong to this message. Optional and defaulted to an
+   * empty list, so every pre-attachment call site keeps working unchanged.
+   */
+  attachments?: MessageAttachment[];
 }
 
 export interface MessagePatch {
@@ -90,6 +96,7 @@ export interface MessagePatch {
   status?: MessageStatus;
   error?: AppErrorShape | null;
   usage?: TokenUsage | null;
+  attachments?: MessageAttachment[];
 }
 
 export interface MessageRepository {

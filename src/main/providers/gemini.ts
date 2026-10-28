@@ -64,12 +64,25 @@ function geminiHeaders(key: string): Record<string, string> {
   return { ...jsonHeaders(), 'x-goog-api-key': key };
 }
 
+type GeminiPart = { text: string } | { inlineData: { mimeType: string; data: string } };
+
+/**
+ * Gemini uses `parts` and a `model` role for the assistant. A text-only turn is
+ * one `text` part (unchanged); an image turn adds an `inlineData` part.
+ */
 function toGeminiContents(
   turns: ChatCompletionRequest['turns'],
-): Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> {
+): Array<{ role: 'user' | 'model'; parts: GeminiPart[] }> {
   return turns.map((turn) => ({
     role: turn.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: turn.content }],
+    parts:
+      typeof turn.content === 'string'
+        ? [{ text: turn.content }]
+        : turn.content.map((part) =>
+            part.type === 'text'
+              ? { text: part.text }
+              : { inlineData: { mimeType: part.mimeType, data: part.dataBase64 } },
+          ),
   }));
 }
 

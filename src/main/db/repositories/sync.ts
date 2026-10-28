@@ -45,7 +45,7 @@ import {
 } from '../domain-codec';
 import { DbError } from '../errors';
 import type { DbContext } from '../connection';
-import { syncPayloadFor, toSyncConflict } from '../rows';
+import { syncPayloadFor, toMessageAttachments, toSyncConflict } from '../rows';
 import { BaseRepository } from './base';
 
 const MAX_PENDING_LIMIT = 1000;
@@ -496,6 +496,9 @@ export class SqliteSyncRepository extends BaseRepository implements SyncReposito
           ['error_json', jsonOrNull(toAppErrorShape(payload.error))],
           ['usage_json', jsonOrNull(toTokenUsage(payload.usage))],
           ['model_json', jsonOrNull(toModelRef(payload.modelRef))],
+          // Without this a message pulled from another device lost the filenames
+          // of the files it was sent with. Metadata only; byte content never syncs.
+          ['attachments', JSON.stringify(toMessageAttachments(payload.attachments))],
         ];
       }
       case 'agent': {

@@ -8,6 +8,8 @@
  */
 import { PROVIDER_PRESETS } from '../../shared/defaults';
 import { normaliseSettings } from '../../shared/settings';
+import { ATTACHMENT_KINDS, CONTENT_STATUSES } from '../../shared/attachments';
+import type { MessageAttachment } from '../../shared/attachments';
 import type {
   Agent,
   AppSettings,
@@ -19,7 +21,17 @@ import type {
   SyncEntityKind,
   SyncState,
 } from '../../shared/types';
-import { bool, nullableStr, num, parseJson, str, type DbRow } from './codec';
+import {
+  bool,
+  isOneOf,
+  isRow,
+  nullableNum,
+  nullableStr,
+  num,
+  parseJson,
+  str,
+  type DbRow,
+} from './codec';
 import {
   toAppErrorShape,
   toConflictResolution,
@@ -67,6 +79,45 @@ export function toConversation(row: DbRow): Conversation {
   };
 }
 
+/**
+ * Stored attachment metadata -> domain list.
+ *
+ * The column holds JSON written by this application, but it is still treated as
+ * untrusted: rows created before the migration read as SQL NULL, an interrupted
+ * write can leave unparsable text, and a synced payload is arbitrary JSON. A bad
+ * entry is skipped rather than failing the whole message read, and every field is
+ * coerced so no `undefined` leaks into `ChatMessage.attachments`.
+ */
+export function toMessageAttachments(value: unknown): MessageAttachment[] {
+  const parsed = parseJson(value);
+  if (!Array.isArray(parsed)) return [];
+
+  const attachments: MessageAttachment[] = [];
+  for (const entry of parsed) {
+    if (!isRow(entry)) continue;
+    const id = str(entry.id).trim();
+    if (id.length === 0) continue;
+    attachments.push({
+      id,
+      kind: isOneOf(entry.kind, ATTACHMENT_KINDS) ? entry.kind : 'unsupported',
+      name: str(entry.name),
+      mimeType: str(entry.mimeType, 'application/octet-stream'),
+      sizeBytes: Math.max(0, num(entry.sizeBytes, 0)),
+      contentStatus: isOneOf(entry.contentStatus, CONTENT_STATUSES)
+        ? entry.contentStatus
+        : 'failed',
+      contentNote: nullableStr(entry.contentNote),
+      extractedChars: nullableNum(entry.extractedChars),
+      sentToProvider: bool(entry.sentToProvider, false),
+      imageWidth: nullableNum(entry.imageWidth),
+      imageHeight: nullableNum(entry.imageHeight),
+      durationMs: nullableNum(entry.durationMs),
+      createdAt: str(entry.createdAt),
+    });
+  }
+  return attachments;
+}
+
 export function toChatMessage(row: DbRow): ChatMessage {
   return {
     id: str(row.id),
@@ -78,6 +129,8 @@ export function toChatMessage(row: DbRow): ChatMessage {
     error: toAppErrorShape(row.error_json),
     usage: toTokenUsage(row.usage_json),
     modelRef: toModelRef(row.model_json),
+    // Rows written before migration 2 have no column value at all -> `[]`.
+    attachments: toMessageAttachments(row.attachments),
     createdAt: str(row.created_at),
     updatedAt: str(row.updated_at),
   };
@@ -196,6 +249,7 @@ export function syncPayloadFor(entity: SyncEntityKind, row: DbRow): Record<strin
         error: toAppErrorShape(row.error_json),
         usage: toTokenUsage(row.usage_json),
         modelRef: toModelRef(row.model_json),
+        attachments: toMessageAttachments(row.attachments),
         createdAt: str(row.created_at),
         updatedAt: str(row.updated_at),
         deletedAt: nullableStr(row.deleted_at),
