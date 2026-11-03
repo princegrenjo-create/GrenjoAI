@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactElement } from 'react';
+import { supportsTask } from '@shared/capabilities';
 import { ChatIcon, PanelIcon } from '@renderer/components/icons';
 import { Button, EmptyState, ErrorState, IconButton, Select } from '@renderer/components/ui';
 import { useHeadingFocus } from '@renderer/lib/hooks';
@@ -95,13 +96,24 @@ export function ChatPage(): ReactElement {
         ) ?? null)
       : null;
 
+  const selectedModelGeneratesText = selectedModel
+    ? supportsTask(selectedModel.capabilities, 'chat')
+    : true;
+
+  /*
+   * The chat picker only offers models that declare text generation. An image or
+   * video model in this list is a trap — the user selects it and the request
+   * fails — and an unclassified model is offered for nothing at all.
+   */
+  const chatModels = models.filter((model) => supportsTask(model.capabilities, 'chat'));
+
   const focusModelPicker = (): void => {
     // The Model select is a button inside this slot; focusing it is the shortest
     // honest path from "this model cannot take images" to picking one that can.
     modelSelectorRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
   };
 
-  const modelOptions = models.map((model) => ({
+  const modelOptions = chatModels.map((model) => ({
     value: `${model.providerId}|${model.modelId}`,
     label: model.displayName,
     ...(model.source === 'custom' ? { description: 'Custom model' } : {}),
@@ -112,7 +124,11 @@ export function ChatPage(): ReactElement {
       ? 'Loading the model list…'
       : models.length === 0
         ? 'Add a provider and a model in Models & Providers.'
-        : undefined;
+        : chatModels.length === 0
+          ? 'No model is declared for text generation. Declare one in Models & Providers.'
+          : selectedModel && !selectedModelGeneratesText
+            ? `${selectedModel.displayName} is not a text model. Choose one that is.`
+            : undefined;
 
   const agentOptions = [
     { value: '', label: 'No agent' },
@@ -172,8 +188,10 @@ export function ChatPage(): ReactElement {
                 value={selectedModelKey}
                 options={modelOptions}
                 onChange={onModelChange}
-                disabled={!conversation || models.length === 0}
-                placeholder={models.length === 0 ? 'No models available' : 'Select a model'}
+                disabled={!conversation || chatModels.length === 0}
+                placeholder={
+                  chatModels.length === 0 ? 'No text model available' : 'Select a model'
+                }
                 hint={modelHint}
               />
             </div>

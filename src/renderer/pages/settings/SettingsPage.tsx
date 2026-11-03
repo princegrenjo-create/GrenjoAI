@@ -9,6 +9,7 @@
  * access and no network, so "export" means "here is the document, copy it".
  */
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { supportsTask } from '@shared/capabilities';
 import { asAppError } from '@shared/errors';
 import type {
   AppErrorShape,
@@ -170,6 +171,12 @@ export function SettingsPage(): ReactElement {
         .filter(
           (model) => defaultProviderId.length === 0 || model.providerId === defaultProviderId,
         )
+        /*
+         * The default model starts every new conversation, so it must be a text
+         * model. Offering an image or video model here is the same trap as the
+         * chat picker: it can be selected and then cannot answer anything.
+         */
+        .filter((model) => supportsTask(model.capabilities, 'chat'))
         .map((model) => ({
           value: model.modelId,
           label: model.displayName,

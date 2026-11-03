@@ -3,6 +3,10 @@
  * capabilities, limits, parameters — and offers the actions that are actually
  * possible for that source: a custom model can be edited and deleted, a
  * discovered one is refreshed by discovery, and a built-in hint is read-only.
+ *
+ * A discovered model whose capabilities nothing knows is not a broken chat model:
+ * it is a model that has not been declared yet, so the row says that in words and
+ * offers the one action that fixes it.
  */
 import { useState, type ReactElement } from 'react';
 import { asAppError } from '@shared/errors';
@@ -13,8 +17,11 @@ import { getApi } from '@renderer/lib/api';
 import { errorSummary } from '@renderer/lib/error-copy';
 import {
   CAPABILITIES,
+  EMPTY_CAPABILITY_LABEL,
   SOURCE_LABEL,
   SOURCE_TONE,
+  capabilitySummary,
+  isUnclassified,
   limitSummary,
   paramSummary,
 } from './model-labels';
@@ -25,6 +32,8 @@ export interface ModelRowProps {
   providerName: string;
   onEdit?(model: ModelDescriptor): void;
   onDelete?(model: ModelDescriptor): void;
+  /** Opens the capability editor for a model that declares no capability. */
+  onDeclare?(model: ModelDescriptor): void;
   onRefreshDiscovery?(providerId: string): Promise<DiscoveryOutcome>;
 }
 
@@ -38,13 +47,15 @@ export function ModelRow({
   providerName,
   onEdit,
   onDelete,
+  onDeclare,
   onRefreshDiscovery,
 }: ModelRowProps): ReactElement {
   const [test, setTest] = useState<TestState>({ phase: 'idle' });
   const [discovering, setDiscovering] = useState(false);
   const [discovery, setDiscovery] = useState<DiscoveryOutcome | null>(null);
 
-  const declared = CAPABILITIES.filter((entry) => model.capabilities[entry.key]);
+  const summary = capabilitySummary(model.capabilities);
+  const unclassified = isUnclassified(model.capabilities);
   const absent = CAPABILITIES.filter((entry) => !model.capabilities[entry.key]);
 
   const runTest = async (): Promise<void> => {
@@ -85,11 +96,16 @@ export function ModelRow({
 
         <div className="pds-model__badges">
           <Badge tone={SOURCE_TONE[model.source]}>{SOURCE_LABEL[model.source]}</Badge>
-          {declared.map((entry) => (
-            <Badge key={entry.key} tone="success">
-              {entry.label}
+          {summary.map((label) => (
+            <Badge key={label} tone="success">
+              {label}
             </Badge>
           ))}
+          {unclassified ? (
+            <Badge tone="warning" dot>
+              {EMPTY_CAPABILITY_LABEL}
+            </Badge>
+          ) : null}
           {model.weirdnessSupported ? <Badge tone="accent">Weirdness</Badge> : null}
         </div>
 
@@ -104,7 +120,7 @@ export function ModelRow({
             <dt>Parameters</dt>
             <dd>{paramSummary(model.supportedParams)}</dd>
           </div>
-          {absent.length > 0 ? (
+          {!unclassified && absent.length > 0 ? (
             <div className="pds-model__fact">
               <dt>Not declared</dt>
               <dd>{absent.map((entry) => entry.label.toLowerCase()).join(', ')}</dd>
@@ -160,6 +176,11 @@ export function ModelRow({
       </div>
 
       <div className="pds-model__actions">
+        {unclassified && onDeclare ? (
+          <Button size="sm" variant="primary" onClick={() => onDeclare(model)}>
+            Declare capabilities
+          </Button>
+        ) : null}
         <Button
           size="sm"
           variant="secondary"

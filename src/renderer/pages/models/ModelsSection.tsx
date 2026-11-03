@@ -25,7 +25,7 @@ import { errorSummary } from '@renderer/lib/error-copy';
 import { formatCount } from '@renderer/lib/format';
 import { toast } from '@renderer/lib/toast';
 import type { DiscoveryOutcome } from './discovery';
-import { ModelDialog } from './ModelDialog';
+import { ModelDialog, type ModelPrefill } from './ModelDialog';
 import { ModelRow } from './ModelRow';
 
 export interface ModelsSectionProps {
@@ -54,6 +54,7 @@ export function ModelsSection({
   const [providerFilter, setProviderFilter] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ModelDescriptor | null>(null);
+  const [prefill, setPrefill] = useState<ModelPrefill | null>(null);
   const [deleting, setDeleting] = useState<ModelDescriptor | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -102,11 +103,32 @@ export function ModelsSection({
 
   const openCreate = (): void => {
     setEditing(null);
+    setPrefill(null);
     setDialogOpen(true);
   };
 
   const openEdit = (model: ModelDescriptor): void => {
     setEditing(model);
+    setPrefill(null);
+    setDialogOpen(true);
+  };
+
+  /**
+   * A discovered model nothing knows about is declared by adding a custom model
+   * for the same endpoint and id. A custom model that declares nothing is edited
+   * in place instead, because its row already exists.
+   */
+  const openDeclare = (model: ModelDescriptor): void => {
+    if (model.source === 'custom') {
+      openEdit(model);
+      return;
+    }
+    setEditing(null);
+    setPrefill({
+      providerId: model.providerId,
+      modelId: model.modelId,
+      displayName: model.displayName,
+    });
     setDialogOpen(true);
   };
 
@@ -198,6 +220,7 @@ export function ModelsSection({
                       key={model.id}
                       model={model}
                       providerName={group.providerName}
+                      onDeclare={openDeclare}
                       onRefreshDiscovery={onDiscover}
                     />
                   ))}
@@ -240,6 +263,7 @@ export function ModelsSection({
                 model={model}
                 providerName={providerName(model.providerId)}
                 onEdit={openEdit}
+                onDeclare={openDeclare}
                 onDelete={(target) => {
                   setDeleteError(null);
                   setDeleting(target);
@@ -253,10 +277,14 @@ export function ModelsSection({
       <ModelDialog
         open={dialogOpen}
         model={editing}
+        prefill={prefill}
         providers={providers}
         defaultProviderId={providerFilter || undefined}
         policy={policy}
-        onClose={() => setDialogOpen(false)}
+        onClose={() => {
+          setDialogOpen(false);
+          setPrefill(null);
+        }}
         onSaved={() => {
           void onChanged();
         }}

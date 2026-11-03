@@ -2,12 +2,17 @@
  * Create or edit a custom model.
  *
  * A custom model is the user's own statement about an endpoint — including the
- * parameters it honours. Nothing here guesses: a capability the user does not
- * switch on stays off, and a limit left blank stays blank rather than being
- * filled with a number the app invented.
+ * capabilities it has and the parameters it honours. Nothing here guesses: a
+ * capability the user does not switch on stays off, and a limit left blank stays
+ * blank rather than being filled with a number the app invented.
+ *
+ * The capability editor covers the full vocabulary, grouped by what the model
+ * does, and enforces the two dependencies that would otherwise store a
+ * contradiction: an image editor needs image generation, and streaming needs
+ * text generation.
  */
 import { useEffect, useState, type ReactElement } from 'react';
-import { makeCapabilities } from '@shared/capabilities';
+import { CAPABILITY_KEYS, makeCapabilities, type CapabilityKey } from '@shared/capabilities';
 import { PARAM_SPECS } from '@shared/defaults';
 import { DEBUG_PARAM_KEYS } from '@shared/params';
 import { asAppError } from '@shared/errors';
@@ -22,13 +27,22 @@ import type {
 import { Button, Dialog, Input, Select, Switch, Textarea } from '@renderer/components/ui';
 import { getApi } from '@renderer/lib/api';
 import { errorSummary } from '@renderer/lib/error-copy';
-import { CAPABILITIES } from './model-labels';
+import { CAPABILITY_DESCRIPTION, CAPABILITY_LABEL } from './model-labels';
 import '@renderer/pages/settings/params.css';
+
+/** What to start a *new* custom model from: a discovered row the user wants to declare. */
+export interface ModelPrefill {
+  providerId: string;
+  modelId: string;
+  displayName: string;
+}
 
 export interface ModelDialogProps {
   open: boolean;
   /** Null creates a model; a value edits that custom model. */
   model: ModelDescriptor | null;
+  /** Seeds the create form from a discovered model. Ignored when `model` is set. */
+  prefill?: ModelPrefill | null;
   providers: ProviderConfig[];
   defaultProviderId?: string;
   policy: UrlPolicyOptions;
@@ -36,10 +50,65 @@ export interface ModelDialogProps {
   onSaved(model: ModelDescriptor): void;
 }
 
+/** A new custom model is a text model until the user says otherwise. */
 const EMPTY_CAPABILITIES: ModelCapabilities = makeCapabilities({
   chat: true,
   streaming: true,
 });
+
+/**
+ * The groups the editor shows. Every capability appears exactly once, so a flag
+ * added to the shared vocabulary cannot become unreachable in the form.
+ */
+const CAPABILITY_GROUPS: { title: string; keys: CapabilityKey[] }[] = [
+  { title: 'Text', keys: ['chat', 'streaming', 'toolCalling'] },
+  { title: 'Images', keys: ['imageInput', 'imageOutput', 'imageEditing'] },
+  { title: 'Video', keys: ['videoInput', 'videoOutput'] },
+  { title: 'Audio', keys: ['audioInput', 'audioOutput'] },
+  { title: 'Other', keys: ['embeddings'] },
+];
+
+/**
+ * A capability that cannot be on without another one. `videoOutput` is absent on
+ * purpose: a video model stands on its own.
+ */
+const CAPABILITY_REQUIRES: Partial<Record<CapabilityKey, CapabilityKey>> = {
+  streaming: 'chat',
+  imageEditing: 'imageOutput',
+};
+
+/**
+ * Drop any capability whose prerequisite is off. The form prevents the pair being
+ * switched on, and this makes the stored value consistent even when it arrived
+ * that way from an older row.
+ */
+function normalizeCapabilities(input: ModelCapabilities): ModelCapabilities {
+  const next = makeCapabilities(input);
+  for (const key of CAPABILITY_KEYS) {
+    const required = CAPABILITY_REQUIRES[key];
+    if (required && !next[required]) next[key] = false;
+  }
+  return next;
+}
+
+/** The switch hint, and whether the switch may be turned on at all. */
+function capabilityHint(
+  key: CapabilityKey,
+  capabilities: ModelCapabilities,
+): { hint: string; disabled: boolean } {
+  const required = CAPABILITY_REQUIRES[key];
+  if (required && !capabilities[required]) {
+    return capabilities[key]
+      ? {
+          // A row that already claims the dependent capability must stay editable,
+          // otherwise the contradiction could only be fixed by starting over.
+          hint: `Needs ${CAPABILITY_LABEL[required]}. Turn that on, or turn this off.`,
+          disabled: false,
+        }
+      : { hint: `Turn on ${CAPABILITY_LABEL[required]} first.`, disabled: true };
+  }
+  return { hint: CAPABILITY_DESCRIPTION[key], disabled: false };
+}
 
 function parseOptionalCount(text: string): number | null | 'invalid' {
   const trimmed = text.trim();
@@ -52,6 +121,7 @@ function parseOptionalCount(text: string): number | null | 'invalid' {
 export function ModelDialog({
   open,
   model,
+  prefill,
   providers,
   defaultProviderId,
   policy,
@@ -74,12 +144,14 @@ export function ModelDialog({
 
   useEffect(() => {
     if (!open) return;
-    setDisplayName(model?.displayName ?? '');
-    setModelId(model?.modelId ?? '');
-    setProviderId(model?.providerId ?? defaultProviderId ?? providers[0]?.id ?? '');
+    setDisplayName(model?.displayName ?? prefill?.displayName ?? '');
+    setModelId(model?.modelId ?? prefill?.modelId ?? '');
+    setProviderId(
+      model?.providerId ?? prefill?.providerId ?? defaultProviderId ?? providers[0]?.id ?? '',
+    );
     setBaseUrlOverride(model?.baseUrlOverride ?? '');
     setDescription(model?.description ?? '');
-    setCapabilities(model?.capabilities ?? EMPTY_CAPABILITIES);
+    setCapabilities(model ? makeCapabilities(model.capabilities) : EMPTY_CAPABILITIES);
     setContextWindow(
       typeof model?.limits.contextWindow === 'number' ? String(model.limits.contextWindow) : '',
     );
@@ -91,7 +163,7 @@ export function ModelDialog({
     setSubmitted(false);
     setSaving(false);
     setError(null);
-  }, [open, model, defaultProviderId, providers]);
+  }, [open, model, prefill, defaultProviderId, providers]);
 
   const providerOptions = providers.map((provider) => ({
     value: provider.id,
@@ -121,8 +193,14 @@ export function ModelDialog({
   const outputError =
     outputCheck === 'invalid' ? 'The output limit must be a whole number of tokens.' : undefined;
 
-  const toggleCapability = (key: keyof ModelCapabilities): void => {
-    setCapabilities((current) => ({ ...current, [key]: !current[key] }));
+  /**
+   * Turning a capability off also drops the ones that needed it, so the form can
+   * never display a pair that the saved value does not contain.
+   */
+  const toggleCapability = (key: CapabilityKey): void => {
+    setCapabilities((current) =>
+      normalizeCapabilities({ ...current, [key]: !current[key] }),
+    );
   };
 
   const toggleParam = (key: GenParamKey): void => {
@@ -159,7 +237,7 @@ export function ModelDialog({
       baseUrlOverride:
         overrideCheck && overrideCheck.ok ? overrideCheck.url : null,
       description: description.trim(),
-      capabilities,
+      capabilities: normalizeCapabilities(capabilities),
       limits,
       supportedParams,
       weirdnessSupported,
@@ -254,13 +332,27 @@ export function ModelDialog({
 
       <fieldset className="pds-form-fieldset">
         <legend className="pds-form-legend">Capabilities</legend>
-        {CAPABILITIES.map((entry) => (
-          <Switch
-            key={entry.key}
-            label={entry.label}
-            checked={capabilities[entry.key]}
-            onChange={() => toggleCapability(entry.key)}
-          />
+        <p className="pds-form-hint">
+          What this model does. A capability left off is never assumed, and the pickers only offer
+          a model for a task it declares.
+        </p>
+        {CAPABILITY_GROUPS.map((group) => (
+          <fieldset className="pds-form-fieldset" key={group.title}>
+            <legend className="pds-params__legend">{group.title}</legend>
+            {group.keys.map((key) => {
+              const { hint, disabled } = capabilityHint(key, capabilities);
+              return (
+                <Switch
+                  key={key}
+                  label={CAPABILITY_LABEL[key]}
+                  checked={capabilities[key]}
+                  disabled={disabled}
+                  hint={hint}
+                  onChange={() => toggleCapability(key)}
+                />
+              );
+            })}
+          </fieldset>
         ))}
       </fieldset>
 

@@ -1,10 +1,11 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { makeCapabilities } from '@shared/capabilities';
 import { DEFAULT_SETTINGS, PARAM_SPECS } from '@shared/defaults';
 import type { AppSettings, GenParamKey } from '@shared/types';
 import { useSettingsStore } from '@renderer/lib/store';
 import { SettingsPage } from '@renderer/pages/settings/SettingsPage';
-import { makeAgent } from '../helpers/fake-api';
+import { makeAgent, makeModel } from '../helpers/fake-api';
 import { resetStores } from '../helpers/state';
 import {
   bridgeError,
@@ -27,6 +28,39 @@ beforeEach(() => {
 });
 
 describe('Settings page', () => {
+  it('offers only text models as the default for a new conversation', async () => {
+    const fake = installApi({
+      models: [
+        makeModel({ id: 'm-chat', modelId: 'chat-model', displayName: 'Chat model' }),
+        makeModel({
+          id: 'm-image',
+          modelId: 'image-model',
+          displayName: 'Image model',
+          capabilities: { ...makeCapabilities({ imageOutput: true }), chat: false },
+        }),
+        makeModel({
+          id: 'm-unknown',
+          modelId: 'unclassified-model',
+          displayName: 'Unclassified model',
+          capabilities: makeCapabilities(),
+        }),
+      ],
+    });
+    fake.api.app.info = vi.fn(async () => makeAppInfo());
+    fake.api.app.paths = vi.fn(async () => makePaths());
+    const harness = renderPage(fake, <SettingsPage />);
+
+    const trigger = await screen.findByRole('combobox', { name: 'Default model' });
+    await harness.user.click(trigger);
+    const listbox = await screen.findByRole('listbox', { name: 'Default model' });
+
+    // The default model starts every new conversation, so an image-only or
+    // undeclared model here would be selectable and then unable to answer.
+    expect(within(listbox).getByRole('option', { name: /Chat model/ })).toBeInTheDocument();
+    expect(within(listbox).queryByRole('option', { name: /Image model/ })).toBeNull();
+    expect(within(listbox).queryByRole('option', { name: /Unclassified model/ })).toBeNull();
+  });
+
   it('renders a loading state until the settings document is read', async () => {
     const fake = installApi();
     fake.api.settings.get = () => new Promise<AppSettings>(() => undefined);
