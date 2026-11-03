@@ -245,6 +245,85 @@ sweep, no schema change, no push. PART-002 owns the first source change.
 <dev@localhost>` (from `git config user.name`). It was left untouched because changing a git identity is the
 owner's call, not a side effect of a baseline commit; every commit in this phase is authored under it.
 
+## PART-002 — Consolidation: dead code and real defects (complete)
+
+**State:** PASSED, with four items explicitly `UNAVAILABLE` (listed at the end — none is claimed as verified).
+Ten commits, one concern each, on top of `0438336`. Total: 39 files, +1,182 / −348.
+
+| Commit | Fix | What it does |
+|---|---|---|
+| `49228bf` | **D-01** | Defines `--size-prose: 65ch` and adds a token-integrity test |
+| `27ae692` | **D-02** | Adds `media-src 'self' blob:` to the dev CSP and a parity test |
+| `c22f1b9` | **D-03** | One `ConfirmDialog` replaces four copies; destructive confirms become `alertdialog` |
+| `519934c` | **D-04** | `npm run dist` now runs `audit:gate`, `typecheck` and `test` first |
+| `1379c28` | **D-05** | Removes the hardcoded `2026-10-29` sink from a script and the test harness |
+| `4454089` | **D-06** | The quality gate scans `src`, `tests` and `scripts` (144 → 230 files) |
+| `5cc2f24` | **D-07** | The Markdown doc comment now describes what the code does |
+| `10800f0` | **D-09** | `resetAdHocDarwinSignature` for arm64 macOS |
+| `a3446b6` | dead code | `providers/executor.ts` and its test removed (reference graph verified first) |
+| `1c6cc21` | **D-08** | The two attach buttons request different, validated, derived filter lists |
+
+### Reference-graph verification before the only tracked-file deletion
+
+| Check | Result |
+|---|---|
+| Mentions of `executor` across `src/`, `tests/`, `scripts/` | 5 hits: the barrel re-export (2), two prose comments, and the module's own test import |
+| Consumers of `runChat` / `runBuffered` | Only `executor.ts`, the barrel re-export and `executor.test.ts`. **No production caller.** |
+| Dynamic `import(` inside `src/main/providers/` | none |
+| Imports of the providers barrel (`./providers`, `providers/index`) | **none** |
+| `ChatStreamHooks` consumers | defined in `executor.ts`, re-exported by the barrel, used nowhere else |
+| How production actually runs a turn | `chat/service.ts:368` and `services/models.ts:191` call `transport.run(...)`, which handles `stream: false` at `transport.ts:152-153` |
+| Coverage left behind | `transport.test.ts` exercises non-streaming `run`; the chat-service suites cover streaming, cancel and error paths (25 assertions) |
+
+Deleted: `src/main/providers/executor.ts` (80 lines), its two barrel export lines, and
+`tests/main/providers/executor.test.ts` (4 tests). Revert in one command:
+`git checkout 0438336 -- src/main/providers/executor.ts src/main/providers/index.ts tests/main/providers/executor.test.ts`
+
+### Each fix proven to fail before it passed
+
+| Fix | Evidence it would have failed without the change |
+|---|---|
+| D-01 token | Removing the line → `tokens.test.ts` fails: `undefined custom properties:\nstyles/global.css:171 → --size-prose`, 2 of 3 tests red; restored → 3/3 green |
+| D-02 CSP | Removing the directive from `devCsp` → `main-process dev policy allows blob media` fails; restored → 3/3 green |
+| D-06 gate scope | A probe `tests/__gate-probe.test.ts` containing a `TODO` → `FAIL tests\__gate-probe.test.ts:1`, exit 1; the same probe in `src/` behaves as before; removing it → exit 0. Before this change the gate walked `src` only (144 files) and would have passed |
+| D-05 sink | The smoke script wrote to `.work/2026-11-03-packaged-smoke/out/` (created at 22:13 by the run below) and nothing new appeared under `.work/2026-10-29-personal-ai-desk/out/` |
+| D-03 / D-08 | Asserted by new tests, not by eye — see the counts below |
+
+### Test and gate deltas against the PART-001 baseline
+
+| Gate | PART-001 baseline | PART-002 | Delta |
+|---|---|---|---|
+| `npm run typecheck` | exit 0 | exit 0 | — |
+| Node suite | 51 files / **601** tests | 52 files / **611** tests | −1 file (dead test), **+10 net** |
+| Renderer suite | 14 files / **157** tests | 16 files / **175** tests | +2 files, **+18** |
+| `quality-gate.mjs` | 144 files, 0 blocking | **230 files**, 0 blocking, 23 named waivers | +86 files now scanned |
+| `npm run build` | exit 0, main 1,249.79 kB / preload 6.04 / CSS 67.17 / JS 718.31 | exit 0, main **1,251.33** / preload **6.06** / CSS **67.19** / JS **718.12** | main +1.54 kB (picker validation), renderer JS −0.19 kB (four dialog copies → one) |
+| `npm run pack` | not run | **exit 0** — `release/win-unpacked/Grenjo AI Tool.exe` (246,111,744 B), fuses flipped `before={…49,48,49,49…} after={…48,49,48,48…}` | proves electron-builder accepts the new icon |
+
+Test arithmetic: 601 − 4 (dead `executor.test.ts`) + 3 (tokens) + 3 (CSP parity) + 4 (attachment filters) + 7 (pick validation) = **611**.
+Renderer: 157 + 3 (tokens) + 9 (ConfirmDialog) + 3 (models page regressions) + 3 (attach buttons) = **175**.
+
+### Not verified in PART-002 (reported, not claimed)
+
+| Item | Why | How to finish |
+|---|---|---|
+| Packaged-app launch (`npm run smoke:packaged`) | **UNAVAILABLE — environment.** A *pristine* Electron probe with no application code, every profile path redirected inside the workspace, exits with the same code `-2147483645` (0x80000003) and prints nothing, not even its first line. The one run that surfaced stderr showed Chromium's own failure: `process_singleton_win.cc:318] Lock file can not be created: Access is denied. (0x5)` and the same for its cache directories — the agent shell's file sandbox denies the writes Chromium needs at process init. This is not the app and not this change: no application JavaScript runs before the failure | From a normal desktop session: `npm run pack` then `npm run smoke:packaged` |
+| The arm64 macOS signature fix (D-09) | **UNAVAILABLE — no mac host.** The option is set for `darwin` + `arm64` only, which is provable by reading; that the app then launches is not | On an arm64 mac: `npm run pack && open release/mac/Grenjo AI Tool.app` |
+| The real OS file dialog's rendering of the filters (D-08) | The filter lists are asserted at the dialog port and every extension is re-checked against `classifyFile`, but no window was opened to look at the picker | Click both attach buttons in a running app (owner, one minute) |
+| The rendered `alertdialog` and focus behaviour in a real window (D-03) | jsdom proves the ARIA role, focus target, Escape and restore; it cannot prove the rendered modal | Part of the Playwright pass approved as Q5 (PART-008) |
+
+### Scope note — what PART-002 deliberately did not do
+
+The audit also lists two configuration-hygiene items under the same part of the plan: the
+`test:coverage` script that cannot run (no coverage provider installed, no root vitest config) and
+the dead `scripts/**/*.mjs` include in `tsconfig.node.json` (no `allowJs`, so the scripts are not
+typechecked despite the config claiming to cover them). The owner's PART-002 scope named the nine
+audit defects, so these two were **left untouched and deferred to PART-003**, not silently folded in.
+
+No database schema, migration, user data, credential or provider-architecture file was modified:
+`schema_migrations` stays at version 2, `supabase/` is untouched, and `git diff 0438336..HEAD`
+reports no file under `src/main/db/` or `supabase/`.
+
 ## Cross-cutting: the environment has two known quirks
 
 | # | Claim | Verdict | Evidence |

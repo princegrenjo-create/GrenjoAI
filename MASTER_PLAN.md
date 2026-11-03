@@ -99,7 +99,7 @@
 | Part | Title | Depends on | Owner-visible outcome |
 |---|---|---|---|
 | PART-001 | Baseline checkpoint and evidence run | — | ✅ A tagged, tested starting point nobody has to guess about |
-| PART-002 | Consolidation: dead code and real defects | 001 | One chat execution path; nine small defects closed |
+| PART-002 | Consolidation: dead code and real defects | 001 | ✅ One chat execution path; nine small defects closed |
 | PART-003 | Workspace truth: leftovers, docs, dependencies | 002 | Tree matches intent; docs stop lying; one dependency gone |
 | PART-004 | Capability-based model registry | 002 | A model can be an image or video model, and the picker knows |
 | PART-005 | Media store, job engine, IPC, `media://` | 004 | The backend a generation can actually run on |
@@ -141,7 +141,29 @@ started.**
 
 ---
 
-## PART-002 — Consolidation: dead code and real defects
+## PART-002 — Consolidation: dead code and real defects — **COMPLETE 2026-11-03**
+
+**State:** complete, with four items recorded `UNAVAILABLE` rather than claimed: the packaged launch
+(environmental — a pristine Electron probe fails identically), the arm64 mac signature (no mac host), and the
+two rendered-browser checks that belong to the Playwright pass. Evidence: `PLAN_EVIDENCE.md` §"PART-002".
+
+Ten commits, one concern each: `49228bf` D-01 · `27ae692` D-02 · `c22f1b9` D-03 · `519934c` D-04 · `1379c28`
+D-05 · `4454089` D-06 · `5cc2f24` D-07 · `10800f0` D-09 · `a3446b6` dead executor removed · `1c6cc21` D-08.
+Gates at `1c6cc21`: typecheck 0, node 611 tests, renderer 175 tests, gate 230 files / 0 blocking, build 0,
+`npm run pack` 0.
+
+**Deferred, not silently folded in:** the broken `test:coverage` script and the dead `scripts/**/*.mjs` include
+in `tsconfig.node.json`. The owner's scope named the nine audit defects; these two are configuration hygiene
+and move to PART-003.
+
+**New finding for the record (not fixed — out of scope):** the CSP is defined twice, once in
+`vite.renderer.config.ts` (the `<meta>` tag) and once in `src/main/security.ts` (the response header). They had
+already drifted, which is what caused D-02. The parity test now catches divergence, but the duplication itself
+deserves a single source of truth; that is a build-config refactor and belongs in PART-003 or later.
+
+---
+
+## PART-002 (original brief)
 
 - **G:** One authoritative implementation per concern, and the audit's proven defects closed, without touching
   anything that already works.
