@@ -1,7 +1,7 @@
 {
   "name": "grenjo-ai-tool",
   "productName": "Grenjo AI Tool",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Grenjo AI Tool — a personal AI desktop application with bring-your-own-key providers, custom models, agents, attachments and optional cloud sync.",
   "author": "Grenjo AI Tool",

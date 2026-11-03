@@ -772,3 +772,29 @@ sha256 `EA5844D4…CE6A`.
 | A macOS build | PART-012 | requires a macOS host → `UNAVAILABLE` on this machine |
 | The packaged installer carrying the new icon | PART-013 | `npm run dist` + hash + the icon extracted from the exe |
 | The four gates on every later part | all | re-run and recorded per part; PART-001's rows are the reference point |
+
+### 0.2.1 build — prepared 2026-11-04, not published
+
+The first release that exists as an artefact for the update test. 
+pm run dist ran the whole chain
+(gate → typecheck → 775 node → 231 renderer → 10 browser → build → NSIS) and exited 0.
+
+| Artefact | Bytes | Digest |
+|---|---|---|
+| elease/Grenjo AI Tool-Setup-0.2.1-x64.exe | 125,115,621 | sha256 A8C60725…D289DC · sha512 DWlfI6J5…qwnhw== |
+| elease/Grenjo AI Tool-Setup-0.2.1-x64.exe.blockmap | 132,628 | blockmap v2, 6,003 blocks |
+| elease/latest.yml | — | ersion: 0.2.1, sha512 identical to the installer's own, size identical |
+
+The packaged app carries esources/app-update.yml (owner princegrenjo-create, repo GrenjoAI,
+provider github) and FileVersion 0.2.1. The 0.2.0 installer is untouched, which is what makes the
+0.2.0 → 0.2.1 test possible.
+
+**Feed state at build time:** GET /repos/princegrenjo-create/GrenjoAI/releases returns **0 releases**, and
+/releases/latest plus the …/releases/latest/download/latest.yml URL both return **404**. That is the
+expected state before publishing and maps to the app's "no published release" sentence, not to an error the
+user can act on. semver.gt('0.2.1','0.2.0') is true, so an installed 0.2.0 will see it.
+
+**One trap recorded while preparing the release:** latest.yml names the asset
+Grenjo-AI-Tool-Setup-0.2.1-x64.exe (dashes) while the file on disk is
+Grenjo AI Tool-Setup-0.2.1-x64.exe (spaces). electron-builder renames on publish; a **manual** upload
+must use the dashed name or the update will 404 after the check succeeds.
