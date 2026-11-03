@@ -39,10 +39,20 @@ function cleanElectronEnv() {
   return env;
 }
 
+/*
+ * Candidates per platform. A Windows run cannot see a mac bundle and vice versa, so
+ * listing both and letting the existence check decide keeps one script for all of
+ * them instead of a platform switch nobody remembers to update.
+ */
+const productName = 'Grenjo AI Tool';
 const candidates = [
   argValue('exe'),
-  path.join(root, 'release', 'win-unpacked', 'Grenjo AI Tool.exe'),
+  ...(process.platform === 'darwin'
+    ? [path.join(root, 'release', 'mac', `${productName}.app`, 'Contents', 'MacOS', productName)]
+    : []),
+  path.join(root, 'release', 'win-unpacked', `${productName}.exe`),
   path.join(root, 'release', 'win-unpacked', 'grenjo-ai-tool.exe'),
+  path.join(root, 'release', 'linux-unpacked', 'grenjo-ai-tool'),
 ].filter(Boolean);
 
 const exePath = candidates.find((candidate) => fs.existsSync(candidate));
@@ -108,9 +118,21 @@ child.on('exit', (code, signal) => {
   const installDir = path.dirname(exePath);
   const userData = String(result.app?.userDataPath ?? '');
   const outsideInstall = userData.length > 0 && !userData.startsWith(installDir);
-  const inAppData =
-    userData.toLowerCase().startsWith(path.join(os.homedir(), 'AppData').toLowerCase()) ||
-    userData.toLowerCase().startsWith((process.env.APPDATA ?? 'C:\\__none__').toLowerCase());
+  /*
+   * The profile must sit under the user's data directory, and which directory that
+   * is depends on the platform: %APPDATA% on Windows, ~/Library/Application Support
+   * on macOS. Asserting the Windows path everywhere made this check fail on a mac
+   * for the wrong reason.
+   */
+  const dataRoots =
+    process.platform === 'darwin'
+      ? [path.join(os.homedir(), 'Library', 'Application Support')]
+      : process.platform === 'win32'
+        ? [path.join(os.homedir(), 'AppData'), process.env.APPDATA ?? 'C:\\__none__']
+        : [path.join(os.homedir(), '.config')];
+  const inAppData = dataRoots.some((dataRoot) =>
+    userData.toLowerCase().startsWith(dataRoot.toLowerCase()),
+  );
 
   const checks = [
     ['preload bridge exposed (window.api is an object)', probe.apiType === 'object'],

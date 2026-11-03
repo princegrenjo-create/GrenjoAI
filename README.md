@@ -124,11 +124,46 @@ rebuild the bundles and restart Electron.
 | `npm run typecheck` | `tsc --noEmit` for the node project and the web project |
 | `npm test` | Node suites, then renderer suites |
 | `npm run test:unit` / `npm run test:ui` | One side only |
+| `npm run test:e2e` | Playwright + axe against the built renderer (layout at 940×600 and 1280×860, accessibility) |
 | `npm run audit:gate` | Repo-wide quality gate (see below) |
 | `npm run dist` | Windows NSIS installer into `release/` |
-| `npm run pack` | Unpacked build only (faster) |
-| `npm run smoke:packaged` | Launches the built exe, checks the preload bridge/CSP/Node isolation, writes a JSON result |
-| `npm run icon` | Regenerates `build/icon.png` and `build/icon.ico` |
+| `npm run pack` | Unpacked Windows build only (faster) |
+| `npm run dist:mac` / `npm run pack:mac` | The same for macOS: DMG + zip, or unpacked |
+| `npm run smoke:packaged` | Launches the built app, checks the preload bridge/CSP/Node isolation, writes a JSON result |
+| `npm run icon` | Regenerates `build/icon.png`, `icon.ico` and `icon.icns` from `build/icon-source.png` |
+| `npm run serve:renderer` | Serves the built renderer over HTTP, for the browser tests |
+
+### Building for each platform
+
+**Windows** — the platform this project is developed and packaged on:
+
+```powershell
+npm install
+node node_modules/electron/install.js   # npm 11 blocks Electron's install script
+npm run dist                            # gates, build, browser tests, NSIS installer
+```
+
+The installer lands in `release/` and is unsigned, so SmartScreen warns once.
+
+**macOS** — needs a macOS host; electron-builder refuses to cross-build:
+
+```bash
+npm install
+npx playwright install chromium   # only if you run the browser suite inside dist:mac
+npm run dist:mac                  # gates, build, DMG + zip
+```
+
+A mac build needs a signing identity to be distributable; without one electron-builder
+skips signing and Gatekeeper warns. The entitlements are in
+`build/entitlements.mac.plist` and the microphone usage string is in
+`electron-builder.yml`. **No macOS bundle has ever been built or launched from this
+repository** — the configuration is correct by reading and unproven by running.
+
+**Web** — there is no web deployment. The renderer *is* a browser page
+(`dist/renderer/index.html` plus its assets), but it is built for `file://` inside
+Electron, performs no network I/O (`connect-src 'none'`), and expects the preload
+bridge. `npm run serve:renderer` exists to load it in a browser **with a stubbed
+bridge** for layout and accessibility tests, not to serve it to users.
 
 ### Quality gate
 

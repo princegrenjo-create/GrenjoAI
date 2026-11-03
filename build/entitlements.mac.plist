@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Entitlements for the macOS build.
+
+  Hardened runtime is required for notarization, and it also *denies* things the
+  app needs by default, so each entry below is a deliberate widening:
+
+    allow-jit                     Chromium's V8 compiles JavaScript at runtime. The
+                                  renderer cannot start without it under the
+                                  hardened runtime.
+    allow-unsigned-executable-memory
+                                  Part of the same JavaScript engine path; required
+                                  by Electron's own documentation for hardened
+                                  runtime builds.
+    device.audio-input            The voice recorder uses getUserMedia({audio}).
+                                  Without this the microphone prompt never appears
+                                  and the feature is dead on macOS.
+
+  Deliberately absent: camera, screen capture, location, address book, calendars,
+  automation, and network client/server. The app needs none of them, and an
+  entitlement is a claim the signed binary makes about itself.
+
+  This is a threat-model change, not a copying exercise: see the A8 assumption in
+  docs/THREAT-MODEL.md for what it widens and why it is accepted.
+-->
+<plist version="1.0">
+  <dict>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+  </dict>
+</plist>

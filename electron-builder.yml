@@ -48,4 +48,58 @@ nsis:
   runAfterFinish: true
   differentialPackage: true
 
+# macOS.
+#
+# A mac target needs **no application code**: node:sqlite comes with Electron's
+# Node, safeStorage is the Keychain, and every path is derived from userData. What
+# it needs is packaging — and an identity, which is the one part this repository
+# cannot supply.
+#
+# `hardenedRuntime` is required for notarization and denies microphone access by
+# default, so the entitlements file asks for exactly two things the app uses: the
+# JavaScript engine's JIT and audio input. `NSMicrophoneUsageDescription` is not
+# optional decoration — macOS terminates an app that calls getUserMedia without it,
+# so the voice feature would become a crash rather than a refusal.
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+    - target: zip
+      arch:
+        - x64
+        - arm64
+  icon: build/icon.icns
+  category: public.app-category.productivity
+  hardenedRuntime: true
+  # Notarization is done by electron-builder when credentials are present; without
+  # them the app is unsigned and Gatekeeper warns, exactly like the Windows build.
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  extendInfo:
+    NSMicrophoneUsageDescription: >-
+      Grenjo AI Tool records a voice memo only when you press record. The audio is
+      sent to the transcription provider you configured, or kept on this machine.
+    NSHumanReadableCopyright: Personal use build
+
+dmg:
+  title: ${productName}
+  # The window has no background image: a background is packaging art this project
+  # does not maintain, and an empty one is better than a stale one.
+  window:
+    width: 540
+    height: 380
+  contents:
+    - x: 150
+      y: 190
+      type: file
+    # The Applications shortcut is what makes a DMG installable by dragging.
+    - x: 390
+      y: 190
+      type: link
+      path: /Applications
+
 publish: null

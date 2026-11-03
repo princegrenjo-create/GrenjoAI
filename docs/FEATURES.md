@@ -24,7 +24,8 @@ are recorded. **NOT BUILT** — deliberately out of this release.
 | Install / launch / upgrade / uninstall lifecycle | **DONE** | install exit 0 → 9/9 smoke checks → reinstall exit 0 with data intact → uninstall exit 0, install dir removed, `%APPDATA%` data preserved |
 | Desktop + Start-menu shortcuts | **DONE** | observed after install |
 | User data separate from install directory | **DONE** | `%APPDATA%\Grenjo AI Tool` (a `%APPDATA%\Personal AI Desk` profile is migrated forward once on first launch); smoke asserts it is outside the install dir |
-| Code signing | **UNAVAILABLE** | no certificate; signing skipped by electron-builder |
+| macOS build | **CONFIGURED, NOT RUN** | mac: target (dmg + zip, x64 + arm64), hardened runtime, uild/entitlements.mac.plist, NSMicrophoneUsageDescription, arm64 ad-hoc signature fix. Cannot be built on Windows: electron-builder answers Build for macOS is supported only on macOS. No mac bundle has ever been launched |
+| Code signing (Windows and macOS) | **UNAVAILABLE** | no certificate and no Developer ID; signing skipped by electron-builder on both |
 
 ## Data
 

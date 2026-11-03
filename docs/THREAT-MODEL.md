@@ -122,8 +122,35 @@ Severity is ranked by exploitability and blast radius, not novelty.
 Re-run this model when: a tool-execution or agent-autonomy feature is added; a new
 entry point or listener appears; a new data class is synced; the renderer gains any
 network capability; the credential backend changes (for example to a Keychain on a
-future mobile build); or a shared code path starts accepting model-authored
-instructions as commands.
+future mobile build); a shared code path starts accepting model-authored
+instructions as commands; **or a platform build starts claiming a new entitlement**.
+
+### A11 — the macOS entitlement widening (added 2026-11-03)
+
+The macOS build runs under the hardened runtime, which denies by default. Three
+entitlements are requested, and none of them is free:
+
+| Entitlement | Why | What it widens |
+|---|---|---|
+| `com.apple.security.cs.allow-jit` | V8 compiles JavaScript at runtime; the renderer does not start without it | Executable memory inside the signed app. It cannot be used to load a *different* signed binary. |
+| `com.apple.security.cs.allow-unsigned-executable-memory` | Part of the same JavaScript path; Electron's hardened-runtime documentation requires it | Memory that is executable and not covered by the code signature, so a memory-corruption bug is more useful to an attacker than under full W^X. |
+| `com.apple.security.device.audio-input` | `getUserMedia({ audio: true })` for the voice recorder | The OS-level microphone prompt. Consent is still per-app and revocable in System Settings, and the in-app permission handler (§5, A7) still denies `video` and every other permission. |
+
+**Decision: mitigate, with the residual stated.** The first two are properties of the
+Electron runtime rather than of this application — a build without them does not run
+at all on macOS — and the third is the same carve-out A7 already made for Windows,
+expressed in the platform's own vocabulary. What is *not* done: no camera,
+screen-recording, location, contacts, calendar, automation or network entitlements are
+requested, and the in-app permission handler that denies those remains the primary
+control on every platform.
+
+`NSMicrophoneUsageDescription` is part of the same decision rather than a wording
+detail: macOS **terminates** an app that captures audio without it, so omitting it
+would convert a permission refusal into a crash.
+
+The Windows build's surface is unchanged; the entitlements apply only to the macOS
+bundle. Verification of the packaged macOS binary is **UNAVAILABLE** here: it cannot
+be built on Windows, and `codesign -d --entitlements` needs a mac.
 
 ## 8. Version 1 residual decisions carried forward
 
