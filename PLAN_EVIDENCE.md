@@ -459,6 +459,27 @@ tested), but the service does not supply them yet — its parameters are scalars
 from a stored media row into `SubmitMediaInput` is PART-007's job, so image *editing* is implemented but not
 yet exposed.
 
+## PART-007 — Image service and persistence (complete)
+
+**State:** PASSED. One commit (`80b1f13`), schema 4, 10 new tests.
+
+| What landed | Why it matters | Verified by |
+|---|---|---|
+| **Schema 4**: `reference_ids`, `mask_media_id`, `conversation_id`, `message_id` on `generation_jobs` | A job that finishes after a restart must still know **what it was given** and **where its image goes** | additive `ALTER`s; applies to a fresh file **and** to a v2 database; newer-schema refusal still fires |
+| Reference resolution at submit time | The file on disk is the authority, not what the renderer claimed | the adapter receives exactly the bytes the store holds; a deleted reference is skipped with a logged warning |
+| Reference validation | Four failures become sentences instead of provider errors | unknown id, a video as a reference, a mask with no reference, more than 16 |
+| Conversation link on job **and** media row | Listing by conversation works, and a resumed job lands in the right chat | a linked generation appears in `media.list({conversationId})`; an unlinked one stays unlinked |
+| Export through the OS dialog | Already built in PART-005, now reachable with real media | export test copies the exact bytes to the chosen path |
+
+**Image editing is now reachable end to end** (service → engine → adapter → `/images/edits`), which closes the
+gap PART-006 recorded. It is proven with a fake adapter that records what it was handed; a live edit remains
+`UNAVAILABLE` without a key.
+
+**Deliberately not done here:** no assistant message is synthesised for a generated image. The media row carries
+the conversation link and `media.list({conversationId})` returns it; how that appears *inside* the chat is
+PART-011's decision, and inventing an empty assistant message now would put a phantom turn in every
+conversation that generated something.
+
 ## Cross-cutting: the environment has two known quirks
 
 | # | Claim | Verdict | Evidence |

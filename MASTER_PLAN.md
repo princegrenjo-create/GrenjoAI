@@ -104,7 +104,7 @@
 | PART-004 | Capability-based model registry | 002 | ✅ A model can be an image or video model, and the picker knows |
 | PART-005 | Media store, job engine, IPC, `media://` | 004 | ✅ The backend a generation can actually run on |
 | PART-006 | Image adapters: OpenAI + Gemini | 005 | ✅ Two confirmed image providers, mocked-tested |
-| PART-007 | Image service and persistence (schema 003) | 006 | Generated images survive a restart and belong to a conversation |
+| PART-007 | Image service and persistence (schema 004) | 006 | ✅ Generated images survive a restart and belong to a conversation |
 | PART-008 | Image Studio UI | 007 | A dedicated, on-brand image workflow |
 | PART-009 | Video adapters and async job lifecycle | 005 | Gemini Omni + BFL, non-blocking, cancellable, resumable |
 | PART-010 | Video Studio UI and player | 009 | A video workflow that does not freeze the app |
