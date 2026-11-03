@@ -98,7 +98,7 @@
 
 | Part | Title | Depends on | Owner-visible outcome |
 |---|---|---|---|
-| PART-001 | Baseline checkpoint and evidence run | — | A tagged, tested starting point nobody has to guess about |
+| PART-001 | Baseline checkpoint and evidence run | — | ✅ A tagged, tested starting point nobody has to guess about |
 | PART-002 | Consolidation: dead code and real defects | 001 | One chat execution path; nine small defects closed |
 | PART-003 | Workspace truth: leftovers, docs, dependencies | 002 | Tree matches intent; docs stop lying; one dependency gone |
 | PART-004 | Capability-based model registry | 002 | A model can be an image or video model, and the picker knows |
@@ -115,7 +115,12 @@
 
 ---
 
-## PART-001 — Baseline checkpoint and evidence run
+## PART-001 — Baseline checkpoint and evidence run — **COMPLETE 2026-11-03**
+
+**State:** complete. `v0.1.0-baseline` and `mobile-archive-2026-11-03` both point at `76ad3e7`; three commits
+(`03341b7` brand, `e4c3d60` mobile archive, `0438336` documents); tree clean; the full battery re-run and green at
+`0438336`. Evidence: `PLAN_EVIDENCE.md` §"PART-001 — Baseline checkpoint and evidence run". **PART-002 has not
+started.**
 
 - **G:** Establish a tagged, verified starting point, so every later change is a diff against something known
   to be green and "unused"/"dead" claims have a baseline.

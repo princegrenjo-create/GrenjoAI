@@ -221,6 +221,30 @@ This is an **environment constraint, not a code defect**: no source, config or d
 it, and the failure is recorded rather than hidden. Every later part that runs a build must set these two
 variables, or it will record a failure that has nothing to do with the change under test.
 
+## PART-001 — Baseline checkpoint and evidence run (complete)
+
+**State:** PASSED. Owner approved the five open decisions on 2026-11-03; PART-001 executed, PART-002 not started.
+
+| # | Step | Verdict | Evidence |
+|---|---|---|---|
+| 1 | Baseline state captured before any commit | **PASSED** | `.work/2026-11-03-audit-consolidation/logs/part-001-baseline.txt` — HEAD `76ad3e7`, branch `master`, 73 porcelain entries (6 ` M`, 4 `??`, 63 ` D`), `git diff --stat` = 69 files changed / 904 insertions / 18,818 deletions |
+| 2 | Known-good baseline tagged | **PASSED** | `v0.1.0-baseline` → `git rev-parse v0.1.0-baseline^{commit}` = `76ad3e79bb7b05e3249759d4f26076e5aa2334fc` |
+| 3 | Mobile client archived by tag | **PASSED** | `mobile-archive-2026-11-03` → same commit; `git ls-tree -r mobile-archive-2026-11-03 --name-only mobile` = **63 files**; `git cat-file -s mobile-archive-2026-11-03:mobile/package.json` = 1,309 B. `Test-Path mobile` → **False** (archived, not half-present) |
+| 4 | Commit 1 — brand assets, reviewed alone | **PASSED** | `03341b7` `feat(brand): adopt the Grenjo AI mark as logo, app icon and installer icon` — 6 files, +341/−125; staged set inspected before commit (`git diff --cached --name-status`) and contained nothing else |
+| 5 | Commit 2 — mobile archive, reviewed alone | **PASSED** | `e4c3d60` `chore(mobile): archive the stale Expo client out of the desktop tree` — **exactly 63 paths, 18,349 deletions, all under `mobile/`**; the "non-mobile staged" list printed empty |
+| 6 | Commit 3 — documents, reviewed alone | **PASSED** | `0438336` `docs: add the Phase 1 audit, the v0.2 plan and the evidence log` — 4 files, +1,281/−344 |
+| 7 | Working tree clean after the three commits | **PASSED** | `git status --porcelain` → **0 entries** |
+| 8 | The tree is still green **after** the commits | **PASSED** | `.work/…/logs/part-001-postcommit.txt` at `0438336`: typecheck exit 0 · node **51 files / 601 tests** exit 0 · renderer **14 files / 157 tests** exit 0 · quality gate 144 files / 0 blocking exit 0 · build exit 0 (`dist/main` 1,249.79 kB, `dist/preload` 6.04 kB, CSS 67.17 kB, JS 718.31 kB — identical to the pre-commit baseline) |
+| 9 | No user data, credential or schema touched | **PASSED** | The three commits touch `build/`, `scripts/`, `README.md`, `mobile/` deletions and `docs/`+plan files only. No file under `src/`, `supabase/`, `tests/`, no `.sqlite`/`.db`, no `.env*`, no migration. Schema stays at version 2 |
+| 10 | Each phase is a separate reviewable commit | **PASSED** | Three commits, one concern each, in the owner's requested order (baseline tag → icon → archive → documents) |
+
+**What was deliberately NOT done:** no cleanup, no dependency removal, no source change, no `.work/` or `release/`
+sweep, no schema change, no push. PART-002 owns the first source change.
+
+**One environment note for later parts:** the repo-local commit identity is still `Personal AI Desk
+<dev@localhost>` (from `git config user.name`). It was left untouched because changing a git identity is the
+owner's call, not a side effect of a baseline commit; every commit in this phase is authored under it.
+
 ## Cross-cutting: the environment has two known quirks
 
 | # | Claim | Verdict | Evidence |
@@ -237,4 +261,4 @@ variables, or it will record a failure that has nothing to do with the change un
 | Any generated image or video from a live provider | PART-006, PART-009 | requires the owner's API keys → `UNAVAILABLE` otherwise |
 | A macOS build | PART-012 | requires a macOS host → `UNAVAILABLE` on this machine |
 | The packaged installer carrying the new icon | PART-013 | `npm run dist` + hash + the icon extracted from the exe |
-| The baseline being re-confirmed on the **tagged** commit | PART-001 | the four commands above, re-run after `v0.1.0-baseline` and the two commits |
+| The four gates on every later part | all | re-run and recorded per part; PART-001's rows are the reference point |
