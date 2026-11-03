@@ -77,6 +77,10 @@
   --size-conversations: 264px;
   --size-content: 1200px;
   --size-chat-column: 760px;
+  /* Reading measure for prose, card copy and empty-state text. Referenced by
+     six rules; without it `max-width: var(--size-prose)` is invalid at
+     computed-value time and the measure silently becomes `none`. */
+  --size-prose: 65ch;
   --size-empty-state: 420px;
   --size-dialog-sm: 400px;
   --size-dialog-md: 520px;
