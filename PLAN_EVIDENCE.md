@@ -568,6 +568,26 @@ same store and its 10 tests pass unchanged — which is the evidence that the mi
 **Not verified:** the page against a live provider (no key) and `media://` actually resolving (that needs the
 Electron main process, which cannot start here — the browser run asserts the URL shape, not the bytes).
 
+## PART-011 — Media in conversations (complete)
+
+**State:** PASSED. One commit (`0eba814`), 5 new renderer tests.
+
+| Requirement | How it is met | Proven by |
+|---|---|---|
+| Generated media is reachable from its conversation | a strip under the transcript: "Generated in this conversation (N)", thumbnails, one click opens the matching studio | only media whose `conversationId` matches the open chat is listed; a second conversation's item is asserted **absent** |
+| No clutter in the chat | no generation controls in the composer; the strip is outside it | the composer still has **exactly 4 buttons** and contains no "generate" text — asserted, since this was the owner's requirement |
+| Reaching the studio from a message | "Generate an image from this message" hands the text over and navigates; the studio consumes the draft once | route becomes `image` and the store holds the prompt |
+| A deleted file reads as deleted | the card swaps to "File removed from disk" on a load error | a fired `error` event on the image swaps the copy |
+| Never through Markdown | the strip is a component, not message content | — (D-07 already established the renderer blocks images in model output) |
+
+**The design decision, restated because it is the point of this part:** media appears as a strip, not as an
+assistant message. A chat turn is a turn and a generation is not one; synthesising a reply for every generated
+file would put a phantom message in the transcript. The row already carried the conversation id (PART-007), so
+this part is the first to *render* the link rather than invent one.
+
+**Not verified:** the strip against real generated files (`media://` needs the Electron main process), and how
+it looks with many items — the strip scrolls horizontally, which jsdom cannot assert.
+
 ## Cross-cutting: the environment has two known quirks
 
 | # | Claim | Verdict | Evidence |
