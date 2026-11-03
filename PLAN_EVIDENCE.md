@@ -480,6 +480,38 @@ the conversation link and `media.list({conversationId})` returns it; how that ap
 PART-011's decision, and inventing an empty assistant message now would put a phantom turn in every
 conversation that generated something.
 
+## PART-008 — Image Studio UI, with Playwright and axe (complete)
+
+**State:** PASSED, and this is the first part whose *appearance* is verified rather than asserted. One commit
+(`0f84961`).
+
+**Tooling added first, as the owner required (`@playwright/test` 1.56.1, `@axe-core/playwright` 4.11.0).**
+
+| Gate | Result |
+|---|---|
+| `npx playwright test` | **5 passed** in Chromium against the **built** bundle |
+| layout @ 940×600 (the app's minimum) | `scrollWidth ≤ clientWidth` — no horizontal scrollbar |
+| layout @ 1280×860 (the default) | same assertion |
+| axe scan (`wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`) | **0 serious, 0 critical** violations |
+| controls per provider | OpenAI: size, quality, count. Gemini: aspect ratio, resolution. No negative prompt for either |
+| chat model in the image picker | asserted absent |
+| jsdom suite | 195 → **205** (10 Image Studio tests: empty state, model filtering, per-provider params, empty prompt refused, live progress from a job event, cancel, named delete confirmation, export, preview) |
+
+**Why a browser and not Electron:** Electron cannot start in this environment (PART-005 recorded the pristine
+probe that fails identically), so the suite serves `dist/renderer` over HTTP and stubs the bridge. The page
+under test is the shipped bundle; `media://` does not resolve there, so no test requires an image to decode —
+they assert the DOM contract, the layout and the accessibility tree, which is exactly what jsdom cannot do.
+
+**A shared-implementation cleanup made in passing:** the `media://` URL builder now lives once in
+`shared/media.ts` and is used by both the main-process protocol handler and the renderer, instead of being
+written twice.
+
+**New npm scripts:** `test:e2e`, `serve:renderer`. `npm run dist` now runs the browser suite after the unit
+suites, so a release cannot ship without the layout and accessibility gates.
+
+**Not verified here:** the page against a live provider (no key), and the `media://` images themselves (the
+handler is a packaged-app check for PART-013). `test-results/` and `playwright-report/` are gitignored.
+
 ## Cross-cutting: the environment has two known quirks
 
 | # | Claim | Verdict | Evidence |

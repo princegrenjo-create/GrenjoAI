@@ -105,7 +105,7 @@
 | PART-005 | Media store, job engine, IPC, `media://` | 004 | ✅ The backend a generation can actually run on |
 | PART-006 | Image adapters: OpenAI + Gemini | 005 | ✅ Two confirmed image providers, mocked-tested |
 | PART-007 | Image service and persistence (schema 004) | 006 | ✅ Generated images survive a restart and belong to a conversation |
-| PART-008 | Image Studio UI | 007 | A dedicated, on-brand image workflow |
+| PART-008 | Image Studio UI | 007 | OK - A dedicated, on-brand image workflow, proven in a browser |
 | PART-009 | Video adapters and async job lifecycle | 005 | Gemini Omni + BFL, non-blocking, cancellable, resumable |
 | PART-010 | Video Studio UI and player | 009 | A video workflow that does not freeze the app |
 | PART-011 | Media in conversations | 008, 010 | Generated media lives in the chat, not beside it |
@@ -379,7 +379,15 @@ PART-007).
 
 ---
 
-## PART-008 — Image Studio UI
+## PART-008 — Image Studio UI — **COMPLETE 2026-11-03**
+
+**State:** complete (`0f84961`). Playwright and axe were added first and pass: 5 browser tests against the
+built bundle, layout asserted at 940×600 and 1280×860, axe reporting no serious or critical violation. jsdom
+205 tests, node 719. Evidence: `PLAN_EVIDENCE.md` §"PART-008".
+
+---
+
+## PART-008 (original brief)
 
 - **G:** A dedicated image workflow that looks like this product, does not clutter the chat, and never offers a
   control the selected model cannot honour.
