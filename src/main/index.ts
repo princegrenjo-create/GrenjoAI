@@ -35,6 +35,10 @@ import { registerIpcHandlers, sendToWindow } from './ipc/register';
 import { createAttachmentService } from './attachments/service';
 import { createAttachmentStore } from './attachments/store';
 import { createTranscriptionService } from './transcription/service';
+import { MediaStore } from './media/store';
+import { createMediaService, type MediaService } from './media/service';
+import { createMediaAdapterRegistry } from './media/registry';
+import { installMediaProtocol, registerMediaScheme } from './media/protocol';
 import { resolveUserDataDir } from './profile';
 import {
   createCredentialSessionStorage,
@@ -60,6 +64,13 @@ let shutdown: (() => void) | null = null;
  */
 const profileStartup = resolveUserDataDir(app.getPath('appData'));
 app.setPath('userData', profileStartup.dir);
+
+/*
+ * The media scheme must be registered before the app is ready: Chromium fixes its
+ * scheme table at startup, and a later registration is silently ignored. The
+ * handler is installed once the store exists, inside bootstrap.
+ */
+registerMediaScheme();
 
 // A single instance keeps one writer on the SQLite file and one credential file.
 if (!app.requestSingleInstanceLock()) {
@@ -299,6 +310,48 @@ async function bootstrap(): Promise<void> {
     attachments: attachmentService,
   });
 
+  /*
+   * Generated media.
+   *
+   * The store lives inside the profile (next to the database and the logs), so a
+   * moved or renamed profile keeps its images. The adapter registry is empty in
+   * this build: the image adapters register themselves here, and until one is
+   * registered the service refuses a generation with a sentence that says so
+   * rather than failing three layers down.
+   */
+  const mediaStore = new MediaStore({ rootDir: path.join(userData, 'media') });
+  const mediaAdapters = createMediaAdapterRegistry();
+  const mediaService: MediaService = createMediaService({
+    db,
+    store: mediaStore,
+    adapterFor: (providerId) => mediaAdapters.get(providerId),
+    settings: readSettings,
+    logger: log.child('media'),
+    dialogs: {
+      async chooseExportPath(suggestedName) {
+        const options = {
+          title: 'Export generated media',
+          defaultPath: suggestedName,
+          buttonLabel: 'Save',
+        };
+        // The window overload is only available once a window exists; the call
+        // happens from a user action, so it does.
+        const result = mainWindow
+          ? await dialog.showSaveDialog(mainWindow, options)
+          : await dialog.showSaveDialog(options);
+        return result.canceled || !result.filePath ? null : result.filePath;
+      },
+      revealInFolder(absolutePath) {
+        shell.showItemInFolder(absolutePath);
+      },
+    },
+    onJobChange: (job) => {
+      sendToWindow(mainWindow, IPC.mediaEvent, job);
+    },
+  });
+  installMediaProtocol(mediaStore);
+  mediaService.start();
+
   // Cloud sync is optional. The engine is constructed here because it needs the
   // database and the credential store, but `start()` — the only call that touches
   // the network — runs only when the owner has switched sync on.
@@ -395,6 +448,7 @@ async function bootstrap(): Promise<void> {
     attachments: attachmentService,
     credentials,
     sync: syncController,
+    media: mediaService,
     appInfo,
     paths,
     logger: log,

@@ -29,7 +29,7 @@ function cspBlock(file: string, name: string): string {
   return source.slice(start, end);
 }
 
-const DIRECTIVES = ["media-src 'self' blob:"];
+const DIRECTIVES = ["media-src 'self' blob: media:"];
 
 describe('development CSP parity', () => {
   it('main-process dev policy allows blob media', () => {
@@ -47,5 +47,21 @@ describe('development CSP parity', () => {
     // not a convenience one, so it is asserted rather than trusted.
     expect(cspBlock('src/main/security.ts', 'PROD_CSP')).toContain("connect-src 'none'");
     expect(cspBlock('vite.renderer.config.ts', 'PROD_CSP')).toContain("connect-src 'none'");
+  });
+
+  it('allows the media scheme for images and video in every policy', () => {
+    // Generated media is served by the app's own protocol handler. Without the
+    // scheme in img-src/media-src a generated image is a broken image and a
+    // generated video cannot play at all, which is why this is asserted.
+    for (const [file, name] of [
+      ['src/main/security.ts', 'PROD_CSP'],
+      ['src/main/security.ts', 'devCsp'],
+      ['vite.renderer.config.ts', 'PROD_CSP'],
+      ['vite.renderer.config.ts', 'DEV_CSP'],
+    ] as const) {
+      const block = cspBlock(file, name);
+      expect(block, `${file} ${name}`).toContain("img-src 'self' data: blob: media:");
+      expect(block, `${file} ${name}`).toContain("media-src 'self' blob: media:");
+    }
   });
 });

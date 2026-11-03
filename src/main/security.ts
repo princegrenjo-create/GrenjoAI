@@ -20,11 +20,11 @@ export const PROD_CSP = [
   "default-src 'none'",
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  "img-src 'self' data: blob: media:",
   "font-src 'self' data:",
   "connect-src 'none'",
   // `blob:` is required to preview a just-recorded voice memo; no remote media.
-  "media-src 'self' blob:",
+  "media-src 'self' blob: media:",
   "object-src 'none'",
   "frame-src 'none'",
   "worker-src 'self'",
@@ -46,14 +46,14 @@ export function applyContentSecurityPolicy(target: Session, options: HardeningOp
     "default-src 'none'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob:",
+    "img-src 'self' data: blob: media:",
     "font-src 'self' data:",
     `connect-src 'self' ${allowedOrigin} ${allowedOrigin.replace('http://', 'ws://')}`,
     // Must match PROD_CSP: the voice-memo preview is a blob: URL, and a policy
     // without `media-src` falls back to `default-src 'none'`, so the memo would
     // be blocked under `npm run dev` while working in the packaged build.
     // Both policies apply, and CSP intersects — one of them denying is enough.
-    "media-src 'self' blob:",
+    "media-src 'self' blob: media:",
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'none'",

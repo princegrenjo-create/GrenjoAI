@@ -9,6 +9,7 @@
  *  - Streaming arrives as an event subscription, not as a callback handle, so a
  *    renderer reload cannot leave a dangling listener inside main.
  */
+import type { GenerationJob, GenerationMedia } from './media';
 import type {
   Agent,
   AgentInput,
@@ -203,6 +204,37 @@ export interface AppApi {
   quit(): Promise<void>;
 }
 
+/**
+ * Generated media.
+ *
+ * Bytes never cross this bridge: list/get return rows, and the renderer shows
+ * a file through the media:// protocol, so a 40 MB video is a normal resource
+ * load rather than a 55 MB string.
+ */
+export interface MediaGenerateInput {
+  task: 'image' | 'video';
+  prompt: string;
+  negativePrompt?: string | null;
+  params?: Record<string, string | number | boolean | null>;
+  providerId?: string;
+  modelId?: string;
+  conversationId?: string | null;
+}
+
+export interface MediaApi {
+  list(filter?: { kind?: 'image' | 'video'; conversationId?: string }): Promise<GenerationMedia[]>;
+  get(id: string): Promise<GenerationMedia | null>;
+  jobs(limit?: number): Promise<GenerationJob[]>;
+  /** Queues a generation and returns immediately: the UI is never blocked. */
+  generate(input: MediaGenerateInput): Promise<{ jobId: string }>;
+  cancel(jobId: string): Promise<boolean>;
+  remove(id: string): Promise<boolean>;
+  /** Saves a copy through the OS dialog; resolves to the path, or null if cancelled. */
+  export(id: string): Promise<string | null>;
+  reveal(id: string): Promise<boolean>;
+  onEvent(listener: (job: GenerationJob) => void): () => void;
+}
+
 export interface DesktopApi {
   conversations: ConversationsApi;
   messages: MessagesApi;
@@ -213,6 +245,7 @@ export interface DesktopApi {
   agents: AgentsApi;
   settings: SettingsApi;
   sync: SyncApi;
+  media: MediaApi;
   app: AppApi;
 }
 
@@ -278,6 +311,18 @@ export const IPC = {
   syncResolveConflict: 'sync:resolve-conflict',
   /** main -> renderer */
   syncStatusEvent: 'sync:status-event',
+
+  /* ------------------------------------------------------------- media -- */
+  mediaList: 'media:list',
+  mediaGet: 'media:get',
+  mediaJobs: 'media:jobs',
+  mediaGenerate: 'media:generate',
+  mediaCancel: 'media:cancel',
+  mediaRemove: 'media:remove',
+  mediaExport: 'media:export',
+  mediaReveal: 'media:reveal',
+  /** main -> renderer */
+  mediaEvent: 'media:event',
 
   appInfo: 'app:info',
   appPaths: 'app:paths',

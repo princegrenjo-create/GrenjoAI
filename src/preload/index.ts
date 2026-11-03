@@ -109,6 +109,17 @@ const api: DesktopApi = {
     resolveConflict: (id, resolution) => call(IPC.syncResolveConflict, { id, resolution }),
     onStatus: (listener) => subscribe(IPC.syncStatusEvent, listener),
   },
+  media: {
+    list: (filter) => call(IPC.mediaList, filter),
+    get: (id) => call(IPC.mediaGet, id),
+    jobs: (limit) => call(IPC.mediaJobs, limit),
+    generate: (input) => call(IPC.mediaGenerate, input),
+    cancel: (jobId) => call(IPC.mediaCancel, jobId),
+    remove: (id) => call(IPC.mediaRemove, id),
+    export: (id) => call(IPC.mediaExport, id),
+    reveal: (id) => call(IPC.mediaReveal, id),
+    onEvent: (listener) => subscribe(IPC.mediaEvent, listener),
+  },
   app: {
     info: () => call(IPC.appInfo),
     paths: () => call(IPC.appPaths),

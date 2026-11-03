@@ -393,6 +393,22 @@ export function createFakeApi(options: FakeApiOptions = {}): FakeApi {
       resolveConflict: vi.fn(async () => notStubbed('sync.resolveConflict')),
       onStatus: vi.fn(() => () => undefined),
     },
+    /*
+     * Media is stubbed as *available but empty*: a page that lists media should
+     * render its empty state, not a "not stubbed" failure. A test that needs data
+     * overrides the individual mock.
+     */
+    media: {
+      list: vi.fn(async () => []),
+      get: vi.fn(async () => null),
+      jobs: vi.fn(async () => []),
+      generate: vi.fn(async () => ({ jobId: 'job-1' })),
+      cancel: vi.fn(async () => true),
+      remove: vi.fn(async () => true),
+      export: vi.fn(async () => null),
+      reveal: vi.fn(async () => true),
+      onEvent: vi.fn(() => () => undefined),
+    },
     app: {
       info: vi.fn(async () => notStubbed('app.info')),
       paths: vi.fn(async () => notStubbed('app.paths')),

@@ -376,3 +376,43 @@ export function formatZodError(error: z.ZodError): string {
   const path = first.path.length > 0 ? `${first.path.join('.')}: ` : '';
   return `${path}${first.message}`;
 }
+
+/* --------------------------------------------------------------- media (v0.2) -- */
+
+export const mediaTaskSchema = z.enum(['image', 'video']);
+
+const mediaParamValueSchema = z.union([
+  z.string().max(2000),
+  z.number(),
+  z.boolean(),
+  z.null(),
+]);
+
+/**
+ * Generation parameters are provider fields, not free-form data: scalars only, so
+ * nothing nested can smuggle a path or an object into a provider body.
+ */
+export const mediaParamsSchema = z.record(z.string().max(64), mediaParamValueSchema);
+
+export const mediaListSchema = z
+  .object({
+    kind: mediaTaskSchema.optional(),
+    conversationId: idString.optional(),
+  })
+  .strict()
+  .optional();
+
+export const mediaGenerateSchema = z
+  .object({
+    task: mediaTaskSchema,
+    prompt: z.string().trim().min(1).max(32_000),
+    negativePrompt: z.string().trim().max(32_000).nullable().optional(),
+    params: mediaParamsSchema.optional(),
+    providerId: idString.optional(),
+    modelId: z.string().trim().min(1).max(200).optional(),
+    conversationId: idString.nullable().optional(),
+  })
+  .strict();
+
+export const jobIdSchema = z.string().trim().min(1).max(64);
+export const mediaJobsQuerySchema = z.number().int().min(1).max(500).optional();

@@ -26,6 +26,9 @@ import {
   customModelInputSchema,
   discoveredModelsSchema,
   generationParamsSchema,
+  mediaGenerateSchema,
+  mediaJobsQuerySchema,
+  mediaListSchema,
   modelRefSchema,
   providerInputSchema,
   settingsPatchSchema,
@@ -38,6 +41,7 @@ import { isExternalLinkAllowed } from '@shared/url-policy';
 import type { AgentInput, AppInfo, AppPaths, AppSettingsPatch, ChatSendInput, ConversationCreateInput, ConversationPatch, CustomModelInput, ProviderInput } from '@shared/types';
 import type { Database } from '@shared/repository-contract';
 import type { Logger } from '../logger';
+import { MediaServiceError, type MediaService } from '../media/service';
 import type { ProviderService } from '../services/providers';
 import type { ModelService } from '../services/models';
 import type { SettingsService } from '../services/settings';
@@ -55,6 +59,7 @@ export interface IpcDependencies {
   attachments: AttachmentService;
   credentials: CredentialStore;
   sync: SyncController;
+  media: MediaService;
   appInfo: () => AppInfo;
   paths: AppPaths;
   logger: Logger;
@@ -65,6 +70,7 @@ export interface IpcDependencies {
 type Handler<TIn> = (input: TIn) => unknown | Promise<unknown>;
 
 const idSchema = z.string().trim().min(1).max(128);
+const jobIdSchema = z.string().trim().min(1).max(64);
 const optionalIdSchema = z.string().trim().max(128).nullish();
 const listOptionsSchema = z
   .object({
@@ -282,6 +288,38 @@ export function registerIpcHandlers(deps: IpcDependencies): void {
     deps.quit();
     return { quitting: true };
   });
+
+  /* --------------------------------------------------------------- media -- */
+
+  /**
+   * The media service reports a small vocabulary of failures with human sentences
+   * already written. Re-throwing them as `AppError` keeps the code on the wire
+   * (the renderer decides what to offer from the code, not from the message) and
+   * stops an unexpected exception being labelled with the wrong cause.
+   */
+  const withMediaErrors = async <T>(fn: () => T | Promise<T>): Promise<T> => {
+    try {
+      return await fn();
+    } catch (error) {
+      if (error instanceof MediaServiceError) {
+        throw new AppError(appError(error.code, error.message));
+      }
+      throw error;
+    }
+  };
+
+  handle(IPC.mediaList, mediaListSchema, (filter) => deps.media.list(filter));
+  handle(IPC.mediaGet, idSchema, (id: string) => deps.media.get(id));
+  handle(IPC.mediaJobs, mediaJobsQuerySchema, (limit) => deps.media.jobs(limit));
+  handle(IPC.mediaGenerate, mediaGenerateSchema, (input) =>
+    withMediaErrors(() => deps.media.generate(input)),
+  );
+  handle(IPC.mediaCancel, jobIdSchema, (jobId: string) =>
+    withMediaErrors(() => deps.media.cancel(jobId)),
+  );
+  handle(IPC.mediaRemove, idSchema, (id: string) => deps.media.remove(id));
+  handle(IPC.mediaExport, idSchema, (id: string) => withMediaErrors(() => deps.media.exportTo(id)));
+  handle(IPC.mediaReveal, idSchema, (id: string) => deps.media.reveal(id));
 
   log.info('IPC handlers registered', {
     count: registered,
