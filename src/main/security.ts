@@ -49,6 +49,11 @@ export function applyContentSecurityPolicy(target: Session, options: HardeningOp
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
     `connect-src 'self' ${allowedOrigin} ${allowedOrigin.replace('http://', 'ws://')}`,
+    // Must match PROD_CSP: the voice-memo preview is a blob: URL, and a policy
+    // without `media-src` falls back to `default-src 'none'`, so the memo would
+    // be blocked under `npm run dev` while working in the packaged build.
+    // Both policies apply, and CSP intersects — one of them denying is enough.
+    "media-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'none'",
