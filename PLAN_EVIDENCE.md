@@ -708,6 +708,53 @@ re-fetch), M-11 (the axe scans cover a narrower page state than the headline imp
 drill) · renderer 217 · e2e 10 · `npm run dist` 0 → `Grenjo AI Tool-Setup-0.2.0-x64.exe`, 124,981,723 B,
 sha256 `AB18B547…D421`.
 
+## PART-015 — Desktop auto-update (electron-updater + GitHub Releases)
+
+**State:** IMPLEMENTED and PASSED for everything this host can run; **no update has been delivered to an
+installed copy** (that needs a published release — see the gate conditions below).
+
+**Repository detected:** `princegrenjo-create/GrenjoAI`, from `git remote -v`. The same owner/repo is written
+into `electron-builder.yml` under `publish:`, which electron-builder copies into the packaged
+`resources/app-update.yml`. **No token exists in the app, the repository or the release config** — the
+releases are public and the installer is authenticated by its sha512, not by a credential.
+
+| Piece | Where | Evidence |
+|---|---|---|
+| Contract (8 states, progress, error copy) | `src/shared/updates.ts` | `UPDATE_STATUSES` includes checking, not-available, available, downloading, ready, error **and** unsupported (a build that cannot check is not a failed check) |
+| Settings group | `src/shared/types.ts`, `defaults.ts`, `settings.ts`, `schemas.ts` | additive JSON group; `normaliseUpdates` fills it for a profile that predates it. **No migration**: `app_settings` stores the whole document as JSON |
+| Driver port (only module that knows electron-updater) | `src/main/updates/driver.ts` | `autoDownload = false`, `autoInstallOnAppQuit = false`, `allowPrerelease = false`, `allowDowngrade = false`; release notes flattened to text, never HTML |
+| State machine | `src/main/updates/service.ts` | `install()` throws unless the state is `ready`; `download()` throws unless `available`; a check never downloads |
+| IPC | `src/shared/api.ts` (6 channels), `src/main/ipc/register.ts`, `src/preload/index.ts` | every channel takes **no input** except `updates:set-auto-check`, which accepts a boolean and nothing else |
+| UI | `src/renderer/pages/settings/UpdatePanel.tsx`, `src/renderer/lib/update-store.ts` | mounted in the existing About card; shows version, latest version, last check, notes, progress, and the four actions |
+| Packaging | `electron-builder.yml` (`publish:`), `vite.main.config.ts` (external) | `release/latest.yml` (365 B, sha512 + size + releaseDate) and `release/win-unpacked/resources/app-update.yml` (owner/repo/provider) both produced by `npm run dist`; `electron-updater` appears **38 times** in `app.asar` |
+
+**Tests: 41 new, all passing.**
+
+| Suite | Count | What it proves |
+|---|---|---|
+| `tests/main/updates/service.test.ts` | 27 | every state transition; no update available; update available; progress; ready; error; unsupported; install refused before a download; install fires only on request; a check never downloads; automatic checks arm/persist/stop; a second start is ignored; concurrent check ignored during a download; release-note flattening; error copy mapping |
+| `tests/main/ipc/updates-payloads.test.ts` | 9 | channels are namespaced and unique; the event channel is named; the only input is a boolean; every state has a label; "cannot check" is distinct from "check failed" |
+| `tests/renderer/pages/update-panel.test.tsx` | 14 | all eight states render; the download button appears only when available; **install needs a button and then a confirmation**, and cancelling installs nothing; the toggle writes through the bridge; a state pushed from main updates an open panel |
+
+**Data protection.** The update path has no database handle, no credential store and no filesystem access —
+`createUpdateService` takes four collaborators and none of them is `db` (asserted in a test). The profile
+lives in `%APPDATA%\Grenjo AI Tool`, outside the install directory that NSIS replaces, so
+install/upgrade/uninstall cannot reach it. Electron-updater also refuses downgrades, and the schema guard
+refuses a database written by a newer build.
+
+**Gates:** quality gate 284 files / 0 blocking · typecheck 0 · node **775** (+27) · renderer **231** (+14) ·
+e2e 10 · `npm run dist` 0 → `Grenjo AI Tool-Setup-0.2.0-x64.exe`, 125,115,640 B,
+sha256 `EA5844D4…CE6A`.
+
+**UNAVAILABLE, stated rather than implied:**
+
+| # | Not proven | Why | How to close |
+|---|---|---|---|
+| C7 | an update actually delivered to an installed copy | needs a published GitHub Release, and this environment cannot launch Electron at all (PART-013 C1) | install 0.2.0, publish 0.2.1 with `latest.yml` + `.blockmap` + installer, then check from the installed app |
+| C8 | Authenticode / publisher-name verification | both builds are unsigned, so electron-updater's signature check cannot pass; only the sha512 check is active | sign the installer (`CSC_LINK`) and add `publisherName` to the `win:` block |
+| C9 | a macOS update | no mac host and no Developer ID; the `zip` target that auto-update requires is already configured | build, sign and notarize on a mac, publish `latest-mac.yml` |
+| C10 | a downgrade being refused on a real install | `allowDowngrade = false` is set and asserted in code; the runtime refusal is not observed | publish an older version with a higher number and confirm the app reports up to date |
+
 ## Cross-cutting: the environment has two known quirks
 
 | # | Claim | Verdict | Evidence |

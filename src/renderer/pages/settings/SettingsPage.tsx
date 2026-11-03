@@ -38,6 +38,7 @@ import { copyToClipboard } from '@renderer/lib/clipboard';
 import { errorSummary } from '@renderer/lib/error-copy';
 import { ROUTE_META } from '@renderer/lib/router';
 import { useSettingsStore } from '@renderer/lib/store';
+import { UpdatePanel } from './UpdatePanel';
 import { toast } from '@renderer/lib/toast';
 import { AdvancedTable } from './AdvancedTable';
 import { GenerationParamControls, NumberField } from './ParamControls';
@@ -724,6 +725,7 @@ export function SettingsPage(): ReactElement {
                   ) : null}
                 </>
               )}
+              <UpdatePanel />
             </CardBody>
           </Card>
         </>

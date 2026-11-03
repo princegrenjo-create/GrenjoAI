@@ -37,6 +37,8 @@ import { createAttachmentStore } from './attachments/store';
 import { createTranscriptionService } from './transcription/service';
 import { MediaStore } from './media/store';
 import { createMediaService, type MediaService } from './media/service';
+import { createElectronUpdateDriver } from './updates/driver';
+import { createUpdateService, type UpdateService } from './updates/service';
 import { buildMediaAdapter } from './providers/media-adapters';
 import { installMediaProtocol, registerMediaScheme } from './media/protocol';
 import { resolveUserDataDir } from './profile';
@@ -353,6 +355,29 @@ async function bootstrap(): Promise<void> {
   installMediaProtocol(mediaStore);
   mediaService.start();
 
+  /*
+   * Auto-update.
+   *
+   * Constructed from `app.isPackaged`: a dev run has no feed, and saying so is
+   * better than a check that can only fail. The driver is the only module that
+   * imports electron-updater, and it is configured to never download or install
+   * on its own — the About page's buttons are the only triggers.
+   */
+  const updates: UpdateService = createUpdateService({
+    driver: createElectronUpdateDriver({ isPackaged: app.isPackaged, appVersion: app.getVersion() }),
+    settings: {
+      get: () => currentSettings.updates,
+      setAutoCheck: async (enabled) => {
+        await settingsService.patch({ updates: { autoCheck: enabled } });
+      },
+    },
+    logger: log.child('updates'),
+    onChange: (state) => {
+      sendToWindow(mainWindow, IPC.updatesEvent, state);
+    },
+  });
+  updates.start();
+
   // Cloud sync is optional. The engine is constructed here because it needs the
   // database and the credential store, but `start()` — the only call that touches
   // the network — runs only when the owner has switched sync on.
@@ -450,6 +475,7 @@ async function bootstrap(): Promise<void> {
     credentials,
     sync: syncController,
     media: mediaService,
+    updates,
     appInfo,
     paths,
     logger: log,

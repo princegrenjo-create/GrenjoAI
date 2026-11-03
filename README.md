@@ -228,6 +228,43 @@ such a key and the repository contains none.
 
 ---
 
+## Updates
+
+Settings → About has the version, a **Check for updates** button and the current state
+(*checking / up to date / available / downloading / ready / failed*). Nothing installs itself:
+
+| Step | Who triggers it | What happens |
+|---|---|---|
+| Check | you, or the optional automatic check | asks `latest.yml` on this repository's GitHub releases — it does not download |
+| Download | you, once an update is offered | fetches the installer and verifies its **sha512** against the feed before accepting it |
+| Restart and install | you, after a confirmation | closes the app, installs, and reopens it |
+
+An update replaces the **application**, never the profile: the database, conversations, agents,
+models, settings and keys live in `%APPDATA%\Grenjo AI Tool` (outside the install directory), so an
+update cannot touch them. There is no rollback to an older version — electron-updater refuses
+downgrades, and the schema guard refuses to open a database written by a newer build.
+
+### Publishing the first update
+
+The feed is GitHub Releases on `princegrenjo-create/GrenjoAI`. The owner/repo live in
+`electron-builder.yml` under `publish:`; no token is stored in the app or the repository, because
+the releases are public and the update is authenticated by its sha512.
+
+1. Bump `version` in `package.json` (for example `0.2.0` → `0.2.1`).
+2. `npm run dist` — runs the gate, typecheck, both suites, the browser suite, then builds
+   `release/Grenjo AI Tool-Setup-0.2.1-x64.exe`, `release/latest.yml` and
+   `release/Grenjo AI Tool-Setup-0.2.1-x64.exe.blockmap`.
+3. On GitHub: **Releases → Draft a new release**, tag `v0.2.1`, and attach **three** files —
+   the installer, `latest.yml`, and the `.blockmap`. The names matter: `latest.yml` points at
+   `Grenjo-AI-Tool-Setup-0.2.1-x64.exe` (dashes), which is how electron-builder renames the asset.
+4. Publish the release. Installed copies on 0.2.0 or later will see it on their next check.
+
+macOS: the `zip` target is what makes auto-update possible there (a DMG alone cannot be updated in
+place), and it is already in the `mac:` block. A mac release additionally needs a Developer ID
+certificate and notarization before updates will verify.
+
+---
+
 ## Security model
 
 The short version; the full model is in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md).

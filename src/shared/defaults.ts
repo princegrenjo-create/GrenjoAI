@@ -641,6 +641,14 @@ export const DEFAULT_SETTINGS: AppSettings = {
     mode: 'off',
     bias: 0.5,
   },
+  updates: {
+    /*
+     * On by default, like most desktop apps: the check is a single anonymous
+     * request for a public release feed, it never downloads anything, and it can
+     * be turned off in Settings -> About.
+     */
+    autoCheck: true,
+  },
   advanced: {
     logLevel: 'info',
     requireHttpsForCustomEndpoints: true,

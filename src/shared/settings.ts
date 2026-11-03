@@ -13,6 +13,7 @@ import type {
   GeneralSettings,
   GenerationSettings,
   SyncSettings,
+  UpdatesSettings,
   WeirdnessSettings,
 } from './types';
 
@@ -134,9 +135,22 @@ export function normaliseSettings(raw: unknown): AppSettings {
     weirdness: normaliseWeirdness(source.weirdness),
     advanced: normaliseAdvanced(source.advanced),
     sync: normaliseSync(source.sync),
+    updates: normaliseUpdates(source.updates),
   };
 }
 
+/**
+ * Update preferences, coerced from whatever is stored.
+ *
+ * A profile written before this feature existed has no updates key at all, and
+ * a profile written by a *newer* build may carry keys this one does not know —
+ * both normalise to a complete, valid group rather than throwing.
+ */
+function normaliseUpdates(raw: unknown): UpdatesSettings {
+  const source = isObject(raw) ? raw : {};
+  const d = DEFAULT_SETTINGS.updates;
+  return { autoCheck: pickBoolean(source.autoCheck, d.autoCheck) };
+}
 function mergeSection<T extends object>(base: T, patch: Partial<T> | undefined): T {
   if (!patch) return { ...base };
   const out = { ...base } as Record<string, unknown>;
@@ -161,6 +175,7 @@ export function mergeSettings(current: AppSettings, patch: AppSettingsPatch): Ap
     generation: mergeSection(current.generation, patch.generation),
     weirdness: mergeSection(current.weirdness, patch.weirdness),
     advanced: mergeSection(current.advanced, patch.advanced),
+    updates: mergeSection(current.updates, patch.updates),
     sync: mergeSection(current.sync, patch.sync),
   });
 }

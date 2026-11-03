@@ -420,3 +420,9 @@ export const mediaGenerateSchema = z
 
 export const jobIdSchema = z.string().trim().min(1).max(64);
 export const mediaJobsQuerySchema = z.number().int().min(1).max(500).optional();
+/**
+ * The only input any update channel accepts. Checking, downloading and installing
+ * take no arguments at all — there is nothing a compromised renderer could pass
+ * that changes what is fetched or where it comes from.
+ */
+export const updateAutoCheckSchema = z.boolean();

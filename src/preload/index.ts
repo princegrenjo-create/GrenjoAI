@@ -120,7 +120,19 @@ const api: DesktopApi = {
     reveal: (id) => call(IPC.mediaReveal, id),
     onEvent: (listener) => subscribe(IPC.mediaEvent, listener),
   },
-  app: {
+  /*
+   * Updates. Five calls, no arguments except the toggle: the preload surface is
+   * the whole capability, so a renderer cannot ask for a different feed, a
+   * different version or a silent install.
+   */
+  updates: {
+    state: () => call(IPC.updatesState),
+    check: () => call(IPC.updatesCheck),
+    download: () => call(IPC.updatesDownload),
+    install: () => call(IPC.updatesInstall),
+    setAutoCheck: (enabled) => call(IPC.updatesSetAutoCheck, enabled),
+    onEvent: (listener) => subscribe(IPC.updatesEvent, listener),
+  },  app: {
     info: () => call(IPC.appInfo),
     paths: () => call(IPC.appPaths),
     openExternal: (url) => call(IPC.appOpenExternal, url),

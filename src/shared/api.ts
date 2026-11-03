@@ -10,6 +10,7 @@
  *    renderer reload cannot leave a dangling listener inside main.
  */
 import type { GenerationJob, GenerationMedia } from './media';
+import type { UpdateState } from './updates';
 import type {
   Agent,
   AgentInput,
@@ -197,6 +198,24 @@ export interface SyncApi {
   onStatus(listener: (status: SyncStatus) => void): () => void;
 }
 
+/**
+ * Auto-update, driven entirely by explicit user actions.
+ *
+ * check() only asks the release feed; download() only downloads; install()
+ * restarts into the downloaded build. Nothing here can install behind the user's
+ * back, which is why there is no "auto install" member to call.
+ */
+export interface UpdatesApi {
+  /** Current state, so the UI can render before the first event arrives. */
+  state(): Promise<UpdateState>;
+  check(): Promise<UpdateState>;
+  download(): Promise<UpdateState>;
+  install(): Promise<{ restarting: boolean }>;
+  setAutoCheck(enabled: boolean): Promise<UpdateState>;
+  /** Returns an unsubscribe function. */
+  onEvent(listener: (state: UpdateState) => void): () => void;
+}
+
 export interface AppApi {
   info(): Promise<AppInfo>;
   paths(): Promise<AppPaths>;
@@ -246,6 +265,7 @@ export interface DesktopApi {
   settings: SettingsApi;
   sync: SyncApi;
   media: MediaApi;
+  updates: UpdatesApi;
   app: AppApi;
 }
 
@@ -323,6 +343,15 @@ export const IPC = {
   mediaReveal: 'media:reveal',
   /** main -> renderer */
   mediaEvent: 'media:event',
+
+  /* ----------------------------------------------------------- updates -- */
+  updatesState: 'updates:state',
+  updatesCheck: 'updates:check',
+  updatesDownload: 'updates:download',
+  updatesInstall: 'updates:install',
+  updatesSetAutoCheck: 'updates:set-auto-check',
+  /** main -> renderer */
+  updatesEvent: 'updates:event',
 
   appInfo: 'app:info',
   appPaths: 'app:paths',

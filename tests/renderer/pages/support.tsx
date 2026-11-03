@@ -114,6 +114,8 @@ export function never<T>(): Promise<T> {
   });
 }
 
+export { setUpdateState } from '../helpers/fake-api';
+
 export function installApi(options: FakeApiOptions = {}): FakeApi {
   const fake = createFakeApi(options);
   __setApiForTest(fake.api);

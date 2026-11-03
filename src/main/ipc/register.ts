@@ -36,6 +36,7 @@ import {
   syncConfigSchema,
   syncResolveSchema,
   transcriptionInputSchema,
+  updateAutoCheckSchema,
 } from '@shared/schemas';
 import { isExternalLinkAllowed } from '@shared/url-policy';
 import type { AgentInput, AppInfo, AppPaths, AppSettingsPatch, ChatSendInput, ConversationCreateInput, ConversationPatch, CustomModelInput, ProviderInput } from '@shared/types';
@@ -48,6 +49,7 @@ import type { SettingsService } from '../services/settings';
 import type { ChatService } from '../chat/service';
 import type { CredentialStore } from '../credentials';
 import type { SyncController } from '../services/sync';
+import type { UpdateService } from '../updates/service';
 import type { AttachmentService } from '../attachments/service';
 
 export interface IpcDependencies {
@@ -60,6 +62,7 @@ export interface IpcDependencies {
   credentials: CredentialStore;
   sync: SyncController;
   media: MediaService;
+  updates: UpdateService;
   appInfo: () => AppInfo;
   paths: AppPaths;
   logger: Logger;
@@ -284,6 +287,23 @@ export function registerIpcHandlers(deps: IpcDependencies): void {
     await shell.openExternal(url);
     return { opened: true };
   });
+  /* ------------------------------------------------------------- updates -- */
+
+  /*
+   * Every update channel takes no input except the auto-check toggle, and none of
+   * them can install anything: updatesInstall is the only path to a restart and
+   * the service refuses it unless a download has already finished.
+   */
+  handle(IPC.updatesState, null, () => deps.updates.getState());
+  handle(IPC.updatesCheck, null, () => deps.updates.check({ manual: true }));
+  handle(IPC.updatesDownload, null, () => deps.updates.download());
+  handle(IPC.updatesInstall, null, () => {
+    deps.updates.install();
+    return { restarting: true };
+  });
+  handle(IPC.updatesSetAutoCheck, updateAutoCheckSchema, (enabled: boolean) =>
+    deps.updates.setAutoCheck(enabled),
+  );
   handle(IPC.appQuit, null, () => {
     deps.quit();
     return { quitting: true };

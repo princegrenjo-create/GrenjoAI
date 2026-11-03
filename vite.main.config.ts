@@ -28,6 +28,10 @@ export default defineConfig({
         // ships them inside the asar because they are production dependencies.
         'mammoth',
         'unpdf',
+        // The updater is required lazily, only when the app is packaged and about to
+        // talk to the release feed. Keeping it external means a development run
+        // never loads it, and electron-builder ships it from node_modules.
+        'electron-updater',
         'node:sqlite',
         'node:crypto',
         'node:fs',

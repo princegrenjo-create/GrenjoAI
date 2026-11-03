@@ -17,6 +17,7 @@ import type {
   TranscriptionResult,
 } from '@shared/attachments';
 import { DEFAULT_SETTINGS } from '@shared/defaults';
+import type { UpdateState } from '@shared/updates';
 import { mergeSettings } from '@shared/settings';
 import type {
   Agent,
@@ -178,6 +179,50 @@ function notStubbed(name: string): never {
   throw new Error(`${name} is not stubbed for this test`);
 }
 
+/*
+ * Update state is shared by the fakes in a test file: setUpdateState replaces
+ * what state() resolves and notifies any subscribed panel. It is reset by
+ * esetStores() in the renderer helpers, so one test cannot leak into the next.
+ */
+let updateState: UpdateState = {
+  status: 'idle',
+  currentVersion: '0.2.0',
+  latestVersion: null,
+  releaseNotes: null,
+  releaseDate: null,
+  progress: null,
+  error: null,
+  unsupportedReason: null,
+  checkedAt: null,
+  autoCheck: true,
+  canCheck: true,
+};
+const updateListeners: Array<(next: UpdateState) => void> = [];
+
+/** Sets the updater state for the current test and notifies subscribers. */
+export function setUpdateState(next: Partial<UpdateState>): void {
+  updateState = { ...updateState, ...next };
+  for (const listener of [...updateListeners]) listener(updateState);
+}
+
+/** Restores the idle state; called by the renderer test reset. */
+export function resetUpdateStateForTest(): void {
+  updateState = {
+    status: 'idle',
+    currentVersion: '0.2.0',
+    latestVersion: null,
+    releaseNotes: null,
+    releaseDate: null,
+    progress: null,
+    error: null,
+    unsupportedReason: null,
+    checkedAt: null,
+    autoCheck: true,
+    canCheck: true,
+  };
+  updateListeners.length = 0;
+}
+
 export function createFakeApi(options: FakeApiOptions = {}): FakeApi {
   const listeners = new Set<(event: ChatStreamEvent) => void>();
   const conversations = (options.conversations ?? []).map((item) => ({ ...item }));
@@ -323,6 +368,8 @@ export function createFakeApi(options: FakeApiOptions = {}): FakeApi {
     reason: null,
   }));
 
+  // Update state arrives from setUpdateState (module level), so one call drives
+  // both the state() reply and the next event a mounted panel receives.
   const api: DesktopApi = {
     conversations: {
       list: listConversations,
@@ -408,6 +455,28 @@ export function createFakeApi(options: FakeApiOptions = {}): FakeApi {
       export: vi.fn(async () => null),
       reveal: vi.fn(async () => true),
       onEvent: vi.fn(() => () => undefined),
+    },
+    /*
+     * Updates: idle by default, and every action is a spy the tests can assert on.
+     * The state object is mutable through setUpdateState so a test can render
+     * any of the eight states without a driver.
+     */
+    updates: {
+      state: vi.fn(async () => updateState),
+      check: vi.fn(async () => updateState),
+      download: vi.fn(async () => updateState),
+      install: vi.fn(async () => ({ restarting: true })),
+      setAutoCheck: vi.fn(async (enabled: boolean) => {
+        updateState = { ...updateState, autoCheck: enabled };
+        return updateState;
+      }),
+      onEvent: vi.fn((listener: (next: UpdateState) => void) => {
+        updateListeners.push(listener);
+        return () => {
+          const index = updateListeners.indexOf(listener);
+          if (index >= 0) updateListeners.splice(index, 1);
+        };
+      }),
     },
     app: {
       info: vi.fn(async () => notStubbed('app.info')),

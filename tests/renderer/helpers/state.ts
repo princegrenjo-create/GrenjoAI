@@ -10,6 +10,8 @@ import {
   useShellStore,
 } from '@renderer/lib/store';
 import { resetMediaStoreForTest } from '@renderer/lib/media-store';
+import { resetUpdatesStoreForTest } from '@renderer/lib/update-store';
+import { resetUpdateStateForTest } from './fake-api';
 import { useToastStore } from '@renderer/lib/toast';
 
 export function resetStores(): void {
@@ -44,6 +46,8 @@ export function resetStores(): void {
   // The media store also owns the one job-event subscription, so it is dropped
   // here rather than left pointing at the previous test's bridge double.
   resetMediaStoreForTest();
+  resetUpdatesStoreForTest();
+  resetUpdateStateForTest();
   useToastStore.setState({ items: [] });
   window.history.replaceState(null, '', '#/chat');
 }

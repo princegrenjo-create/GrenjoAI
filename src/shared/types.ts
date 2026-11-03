@@ -316,6 +316,17 @@ export interface WeirdnessSettings {
   bias: number;
 }
 
+/**
+ * Update behaviour.
+ *
+ * utoCheck decides only whether the app *asks* GitHub for a newer version. It
+ * never downloads, never installs and never restarts anything: those are all
+ * explicit user actions in Settings -> About.
+ */
+export interface UpdatesSettings {
+  autoCheck: boolean;
+}
+
 export interface AdvancedSettings {
   logLevel: AppLogLevel;
   /** Reject plain-HTTP custom endpoints unless allowInsecureLocalhost. */
@@ -343,6 +354,7 @@ export interface AppSettings {
   weirdness: WeirdnessSettings;
   advanced: AdvancedSettings;
   sync: SyncSettings;
+  updates: UpdatesSettings;
 }
 
 export type AppSettingsPatch = {

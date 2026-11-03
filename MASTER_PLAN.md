@@ -112,6 +112,7 @@
 | PART-012 | macOS packaging configuration | 002 | OK - A mac target correct on paper; provable only on a mac |
 | PART-013 | Verification battery and release gate | all | OK - Evidence, not claims; GO WITH CONDITIONS |
 | PART-014 | Independent audit of the final state | 013 | OK - Findings from two who did not write it; three defects fixed |
+| PART-015 | Desktop auto-update (electron-updater + GitHub Releases) | 013 | OK - Check, download, confirmed restart; sha512 verified; nothing forced |
 
 ---
 
@@ -616,3 +617,22 @@ Evidence: `PLAN_EVIDENCE.md` §"PART-014".
 | Q3 | Video providers | **Gemini Omni + BFL**; Veo GA deferred (needs Google Cloud auth, wire format unverified) |
 | Q4 | Should generated media sync to Supabase? | **No, and never automatically.** The already-shipped v0.1 sync engine continues to sync conversations, agents, custom models and settings — that is the "optional cloud sync" half of the owner's phase 7 and needs **no new work**, only regression coverage in PART-013. **Media sync is explicitly deferred**: PART-005 ships the table without sync header columns, and enabling it later is a separate, owner-approved change covering `sync/tables.ts`, the entity union, the RPC switches and the `sync_conflicts` constraint (audit B-08) |
 | Q5 | Add Playwright + axe before the media UI? | **Yes.** It is a work item, not a preference: PART-008 T.1 installs `@playwright/test` and `@axe-core/playwright` (exact-pinned), adds the config and one viewport + one axe check, and PART-013 runs them. If the owner declines, PART-008's viewport and contrast checks downgrade to a recorded manual pass and the gate says so |
+
+## PART-015 — Desktop auto-update (electron-updater + GitHub Releases) — **COMPLETE 2026-11-04**
+
+**State:** implemented and tested (41 tests). Settings → About shows the installed version, the latest
+version, release notes, download progress and a **Restart and install** action; checking is manual by default
+with an optional automatic check; nothing downloads or installs itself.
+
+**Repo:** princegrenjo-create/GrenjoAI (from the git remote; written into publish: in
+electron-builder.yml, which electron-builder turns into the packaged pp-update.yml). No token anywhere —
+public releases, sha512-verified installer.
+
+**Evidence:** PLAN_EVIDENCE.md §"PART-015". Gates: quality 284/0 blocking · typecheck 0 · node 775 ·
+renderer 231 · e2e 10 · 
+pm run dist 0 → 125,115,640 B, sha256 EA5844D4…CE6A, with latest.yml and
+pp-update.yml produced.
+
+**Not proven here:** an update delivered to an installed copy (C7), Authenticode verification (C8, unsigned),
+a macOS update (C9), and a downgrade being refused at runtime (C10). Each is named with the step that closes
+it in PLAN_EVIDENCE.md and README.md § Updates.

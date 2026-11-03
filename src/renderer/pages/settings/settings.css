@@ -261,3 +261,65 @@
     display: none;
   }
 }
+
+/* ---------------------------------------------------------------- updates -- */
+
+/*
+ * The update panel sits inside the About card, so it borrows the card's rhythm
+ * and only adds the parts a card body does not have: an update header, a scannable
+ * release-note block and a row of actions.
+ */
+.pds-settings__updates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: var(--size-border) solid var(--border);
+}
+
+.pds-settings__update-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.pds-settings__update-title {
+  margin: 0 0 var(--space-2xs);
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+}
+
+.pds-settings__update-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.pds-settings__release-notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.pds-settings__release-body {
+  margin: 0;
+  padding: var(--space-sm);
+  max-height: var(--size-preview-max);
+  overflow: auto;
+  border: var(--size-border) solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-inset);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  white-space: pre-wrap;
+}
+
+.pds-settings__error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-caption);
+}

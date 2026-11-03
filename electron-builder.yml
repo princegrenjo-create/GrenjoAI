@@ -102,4 +102,15 @@ dmg:
       type: link
       path: /Applications
 
-publish: null
+# Auto-update feed.
+#
+# electron-updater reads this from the packaged app-update.yml, so the owner and
+# repository are compiled into the app. There is no token here and no token is
+# needed: the releases are public, and an update is only installed if its sha512
+# matches the digest the feed publishes. A build made without this block simply
+# has no feed and reports "updates are not available".
+publish:
+  provider: github
+  owner: princegrenjo-create
+  repo: GrenjoAI
+  releaseType: release
