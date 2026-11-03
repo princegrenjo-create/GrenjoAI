@@ -12,8 +12,7 @@
     "src/main/**/*.ts",
     "src/preload/**/*.ts",
     "tests/main/**/*.ts",
-    "tests/node/**/*.ts",
-    "scripts/**/*.mjs"
+    "tests/node/**/*.ts"
   ],
   "exclude": ["node_modules", "dist", "release"]
 }

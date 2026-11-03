@@ -21,7 +21,6 @@
     "test:unit": "vitest run --config vitest.node.config.ts",
     "test:ui": "vitest run --config vitest.renderer.config.ts",
     "test:watch": "vitest --config vitest.node.config.ts",
-    "test:coverage": "vitest run --coverage",
     "audit:gate": "node scripts/quality-gate.mjs",
     "icon": "node scripts/make-icon.mjs",
     "dist": "npm run audit:gate && npm run typecheck && npm test && npm run build && electron-builder --win nsis --config electron-builder.yml",
