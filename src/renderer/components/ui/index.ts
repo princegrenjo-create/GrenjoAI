@@ -24,6 +24,7 @@ export { ErrorState, type ErrorStateProps } from './ErrorState';
 export { Field, type FieldControl, type FieldProps } from './Field';
 export { IconButton, type IconButtonProps, type IconButtonSize, type IconButtonTone } from './IconButton';
 export { Input, type InputProps } from './Input';
+export { Progress, type ProgressProps } from './Progress';
 export { Select, type SelectOption, type SelectProps } from './Select';
 export { Skeleton, type SkeletonProps } from './Skeleton';
 export { Slider, type SliderProps } from './Slider';

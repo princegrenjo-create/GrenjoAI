@@ -17,11 +17,9 @@
  *    media root — the handler never concatenates a URL into a filesystem path.
  */
 import { net, protocol } from 'electron';
+import { MEDIA_HOST, MEDIA_SCHEME, mediaUrl } from '@shared/media';
 import { pathToFileURL } from 'node:url';
 import type { MediaStore } from './store';
-
-export const MEDIA_SCHEME = 'media';
-export const MEDIA_HOST = 'local';
 
 const CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
   png: 'image/png',

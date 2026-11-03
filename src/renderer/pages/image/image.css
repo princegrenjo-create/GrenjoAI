@@ -1,0 +1,11 @@
+/*
+ * Image Studio layout. Everything structural lives in `components/media/media.css`
+ * (the two-column studio and the card grid); this file holds only what is unique
+ * to the page.
+ */
+
+.pds-image__note {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}

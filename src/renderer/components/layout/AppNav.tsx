@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import {
   AgentsIcon,
   ChatIcon,
+  ImageIcon,
   ModelsIcon,
   SettingsIcon,
   SparkIcon,
@@ -12,6 +13,7 @@ import { ROUTE_META, ROUTE_ORDER, routeToHash, type Route, type RouteName } from
 
 const NAV_ICONS: Record<RouteName, ReactElement> = {
   chat: <ChatIcon />,
+  image: <ImageIcon />,
   agents: <AgentsIcon />,
   models: <ModelsIcon />,
   settings: <SettingsIcon />,

@@ -31,6 +31,8 @@ secrets.json
 data/
 
 # Test / tooling output
+test-results/
+playwright-report/
 coverage/
 .vitest/
 *.log

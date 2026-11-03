@@ -149,3 +149,18 @@ export function extensionForMime(mime: string): string {
       return 'bin';
   }
 }
+
+/** The scheme the app's own protocol handler serves generated media from. */
+export const MEDIA_SCHEME = 'media';
+export const MEDIA_HOST = 'local';
+
+/**
+ * The URL a stored file is displayed from.
+ *
+ * One implementation, used by the main-process handler to register the scheme and
+ * by the renderer to build an `<img>`/`<video>` source. Only the relative path
+ * is embedded, so moving the profile folder does not break a stored URL.
+ */
+export function mediaUrl(relativePath: string): string {
+  return `${MEDIA_SCHEME}://${MEDIA_HOST}/${relativePath.replace(/^\/+/, '')}`;
+}

@@ -1,0 +1,53 @@
+/**
+ * The progress bar. A track and a fill, two numbers from the token file.
+ *
+ * Indeterminate mode animates a sheen; `prefers-reduced-motion` is handled
+ * globally in `global.css`, so the bar still reads as busy without motion.
+ */
+.pds-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.pds-progress__track {
+  position: relative;
+  flex: 1 1 auto;
+  height: var(--size-progress);
+  overflow: hidden;
+  background: var(--surface-inset);
+  border: var(--size-border) solid var(--border);
+  border-radius: var(--radius-full);
+}
+
+.pds-progress__fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  border-radius: var(--radius-full);
+  transition: width var(--duration-base) var(--ease-standard);
+}
+
+.pds-progress__fill--indeterminate {
+  width: 40%;
+  animation: pds-progress-slide var(--duration-shimmer) var(--ease-standard) infinite;
+}
+
+.pds-progress__value {
+  flex: 0 0 auto;
+  min-width: 4ch;
+  text-align: right;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes pds-progress-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
