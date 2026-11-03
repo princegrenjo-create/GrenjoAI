@@ -27,6 +27,8 @@ const KEY_FOR: Record<ProviderKind, string> = {
   gemini: TEST_GEMINI_KEY,
   anthropic: TEST_ANTHROPIC_KEY,
   'openai-compatible': TEST_KEY,
+  // BFL has no chat adapter to test here; the key still has to be mapped.
+  bfl: TEST_KEY,
 };
 
 for (const kind of ['deepseek', 'openai', 'gemini', 'anthropic', 'openai-compatible'] as const) {

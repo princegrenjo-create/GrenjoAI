@@ -101,6 +101,20 @@ export const PROVIDER_PRESETS: Record<ProviderKind, ProviderPreset> = {
     notes:
       'Anthropic uses the Messages API with an x-api-key header and a required anthropic-version header. The system prompt is a top-level field, not a message.',
   },
+  bfl: {
+    kind: 'bfl',
+    label: 'Black Forest Labs',
+    defaultName: 'Black Forest Labs',
+    defaultBaseUrl: 'https://api.bfl.ai/v1',
+    // BFL publishes no model-list endpoint.
+    supportsModelDiscovery: false,
+    // No chat parameters exist: this provider has generation APIs only.
+    supportedParams: [],
+    consoleUrl: 'https://api.bfl.ai/',
+    keyPlaceholder: 'your x-key value',
+    notes:
+      'Image and video generation only; there is no chat API. The credential travels in the x-key header, not Authorization.',
+  },
   'openai-compatible': {
     kind: 'openai-compatible',
     label: 'Custom OpenAI-compatible endpoint',
@@ -123,6 +137,7 @@ export const PROVIDER_ORDER: ProviderKind[] = [
   'gemini',
   'anthropic',
   'openai-compatible',
+  'bfl',
 ];
 
 /* ------------------------------------------------------- parameter metadata -- */
@@ -567,6 +582,22 @@ export const MODEL_HINTS: Record<ProviderKind, ModelHint[]> = {
     },
   ],
   // No hints: a compatible endpoint's model ids are user-defined by definition.
+  bfl: [
+    /*
+     * Video only, and only the mode that was verified: `mode: 't2v'` on
+     * POST /v1/flux-3-video. Image-to-video needs a documented mode and input
+     * shape this build has not confirmed, so the model declares no image input.
+     */
+    {
+      modelId: 'flux-3-video',
+      displayName: 'FLUX 3 Video',
+      description: 'Black Forest Labs text-to-video model. Asynchronous: submit, poll, then download.',
+      capabilities: makeCapabilities({ videoOutput: true }),
+      limits: {},
+      supportedParams: [],
+      weirdnessSupported: false,
+    },
+  ],
   'openai-compatible': [],
 };
 

@@ -17,6 +17,8 @@ import { readProviderKey } from '../models/endpoint-policy';
 import type { CredentialStore } from '../credentials';
 import { createOpenAiImageAdapter } from './openaiImages';
 import { createGeminiImageAdapter } from './geminiImages';
+import { createGeminiVideoAdapter } from './geminiVideo';
+import { createBflVideoAdapter } from './bflVideo';
 
 export interface MediaAdapterContext {
   credentials: CredentialStore;
@@ -44,7 +46,18 @@ export function buildMediaAdapter(
         transport: context.transport,
       });
     case 'gemini':
-      return createGeminiImageAdapter({
+      /*
+       * One provider, two media tasks. The port already carries the task, so the
+       * split happens here instead of forcing the registry to know which task a
+       * provider id was going to be used for.
+       */
+      return createGeminiMediaAdapter({
+        baseUrl: provider.baseUrl,
+        apiKey,
+        transport: context.transport,
+      });
+    case 'bfl':
+      return createBflVideoAdapter({
         baseUrl: provider.baseUrl,
         apiKey,
         transport: context.transport,
@@ -54,4 +67,26 @@ export function buildMediaAdapter(
       // document an image-generation API this build supports.
       return null;
   }
+}
+
+/**
+ * Gemini dispatches image and video to the two adapters that document them.
+ *
+ * Kept as one MediaJobAdapter because the registry is keyed by provider, not by
+ * task: a provider can offer both, and the caller has already said which one it
+ * wants.
+ */
+function createGeminiMediaAdapter(options: {
+  baseUrl: string;
+  apiKey(): Promise<string>;
+  transport: ProviderTransport;
+}): MediaJobAdapter {
+  const image = createGeminiImageAdapter(options);
+  const video = createGeminiVideoAdapter(options);
+  return {
+    supportsCancel: false,
+    maxConcurrent: null,
+    submit: (input) => (input.task === 'video' ? video.submit(input) : image.submit(input)),
+    poll: (input) => (input.task === 'video' ? video.poll(input) : image.poll(input)),
+  };
 }

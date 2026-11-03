@@ -19,6 +19,8 @@ export const PROVIDER_KINDS = [
   'gemini',
   'anthropic',
   'openai-compatible',
+  // Media-only provider: it has generation APIs and no chat API.
+  'bfl',
 ] as const;
 
 export type ProviderKind = (typeof PROVIDER_KINDS)[number];

@@ -17,6 +17,7 @@ import { createOpenAiAdapter } from './openai';
 import { createGeminiAdapter } from './gemini';
 import { createAnthropicAdapter } from './anthropic';
 import { createOpenAiCompatibleAdapter } from './openaiCompatible';
+import { createBflAdapter } from './bfl';
 
 function createAdapter(kind: ProviderKind): ProviderAdapter {
   switch (kind) {
@@ -30,6 +31,10 @@ function createAdapter(kind: ProviderKind): ProviderAdapter {
       return createAnthropicAdapter();
     case 'openai-compatible':
       return createOpenAiCompatibleAdapter();
+    case 'bfl':
+      // Media-only: the adapter exists so the provider can be configured and
+      // error-mapped; its chat surface refuses by design.
+      return createBflAdapter();
   }
 }
 

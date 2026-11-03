@@ -7,9 +7,9 @@ import { createRegistry } from '@main/providers/registry';
 const registry = createRegistry();
 
 describe('createRegistry', () => {
-  it('returns all five adapters in provider order', () => {
+  it('returns one adapter per provider kind, in provider order', () => {
     const adapters = registry.all();
-    expect(adapters).toHaveLength(5);
+    expect(adapters).toHaveLength(PROVIDER_ORDER.length);
     expect(adapters.map((adapter) => adapter.kind)).toEqual([...PROVIDER_ORDER]);
   });
 
@@ -22,8 +22,15 @@ describe('createRegistry', () => {
     }
   });
 
-  it('exposes a discovery request for every adapter', () => {
+  it('exposes a discovery request for every adapter that has one', () => {
     for (const adapter of registry.all()) {
+      // A media-only provider publishes no model list; its absence is the correct
+      // answer, not a missing implementation.
+      if (adapter.kind === 'bfl') {
+        expect(adapter.supportsModelDiscovery).toBe(false);
+        expect(adapter.buildListModelsRequest({ providerId: 'p', baseUrl: 'https://api.bfl.ai/v1', apiKey: 'k', timeoutMs: 1000 })).toBeNull();
+        continue;
+      }
       const request = adapter.buildListModelsRequest({
         providerId: 'p',
         baseUrl: 'https://api.example.test/v1',
