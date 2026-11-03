@@ -388,34 +388,43 @@ conversation. Fixed in `SettingsPage.tsx` with its own regression test.
 **Not verified:** the rendered look of the badge row and the scroll behaviour of the longer capability editor
 in a real window — jsdom proves the DOM contract, not the pixels. That is the Playwright pass in PART-008.
 
-## PART-005 — Media store, job engine, IPC, `media://` (**in progress**)
+## PART-005 — Media store, job engine, IPC, `media://` (complete)
 
-**State:** three of five pieces landed and verified. Not yet complete: the IPC surface and the `media://`
-protocol handler. Nothing in this part has touched user data, credentials or an existing migration.
+**State:** PASSED. Five pieces, five commits. Nothing in this part touched user data, credentials or an
+existing migration; schema 3 is additive and the migration was proven on a live v2 database with rows in it.
 
 | Commit | Piece | Verified by |
 |---|---|---|
-| `c663408` | **Schema 3** (`media`, `generation_jobs`), both repositories, content-addressed store | migration applied to a fresh file **and** to a live v2 database with rows; traversal/absolute/oversize refused; atomic, idempotent writes; 22 tests |
-| `3ef1d2a` | **Job engine** — bounded polling, backoff with jitter, per-provider throttle, cancel, deadline expiry, restart recovery | 16 engine tests incl. "a rejection is never retried", "persist before success", "one submit for two overlapping ticks", "expired ≠ failed" |
-| `e85958e` | **Media service** — capability-based eligibility, storage, export/reveal, scheduler | 12 tests incl. "a chat model cannot be handed an image job", "exactly one file and one row", "overlapping ticks submit once", "restart writes one row" |
+| `c663408` | **Schema 3** (`media`, `generation_jobs`), both repositories, content-addressed store | fresh file **and** v2-with-rows upgrade; traversal/absolute/oversize refused; atomic idempotent writes; 22 tests |
+| `3ef1d2a` | **Job engine** — polling, backoff+jitter, per-provider throttle, cancel, deadline expiry, restart recovery | 16 tests, incl. "a rejection is never retried", "persist before success", "two overlapping ticks submit once", "expired ≠ failed" |
+| `e85958e` | **Media service** — capability eligibility, storage, export/reveal, scheduler | 12 tests, incl. "a chat model cannot be handed an image job", "one file and one row", "restart writes one row" |
+| `af8ff40` | **IPC surface** (9 channels + progress event) and the **`media://` protocol**; CSP for the scheme | 10 payload tests, 11 protocol/registry/CSP tests |
+| `edde2d1` | Progress record | — |
 
-Gates after each commit: typecheck 0; node **674** tests (was 624 at PART-004); renderer 195; quality gate
-246 files / 0 blocking.
+| Gate | PART-004 | PART-005 | Delta |
+|---|---|---|---|
+| typecheck | 0 | 0 | — |
+| node tests | 624 | **692** | +68 |
+| renderer tests | 195 | 195 | — |
+| quality gate | 235 files | **250 files**, 0 blocking | +15 |
+| build | 0 | 0 | — |
 
-**Decisions recorded rather than improvised:**
+**Proven, not asserted:**
 
-- Media rows carry **no sync header** and are absent from `SYNC_TABLES` — asserted by test, because the owner
-  decided generated media stays local.
-- Conversation/message links are `ON DELETE SET NULL`, so deleting a chat never deletes generated files; a
-  hard delete is used in the test because a soft delete legitimately keeps the link.
-- `expired` is a distinct terminal state from `failed`: the provider may still have finished; this app stopped
-  waiting, and the message says so instead of inviting a pointless retry.
-- A job that has never been submitted is always due — reading the row's timestamp first let a clock
-  difference between database and engine strand a queued job.
+| Claim | Evidence |
+|---|---|
+| The upgrade path is safe | a database at v2 **with a conversation and a message in it** is opened by the new build; the rows survive and the new tables come up usable |
+| Nothing about user media is cascaded away | hard-deleting a conversation leaves the media row (links become NULL), asserted directly |
+| Media is not in the sync set | absent columns *and* absent `SYNC_TABLES` entry, both asserted |
+| A URL cannot become a path outside the root | `../../etc/passwd`, absolute paths and a URL-encoded traversal are refused by the store's pattern, and the protocol helper returns null for a foreign scheme or host |
+| The renderer can display a file without loosening the network | all four CSP policies allow `media:` in `img-src`/`media-src` while `connect-src` stays `'none'`, asserted |
+| Two ticks cannot double-submit | a test starts two `tick()` calls together and counts one submit |
+| A job interrupted by a restart resumes exactly once | re-created engine over the same database writes exactly one media row |
 
-**Next:** the `media` IPC namespace (`list/get/generate/cancel/jobs/remove/export/reveal/onEvent` with zod
-validation and the sender assertion), the `media://` protocol handler restricted to the media root, and the
-CSP entries that let the renderer show a file without `connect-src` ever being loosened.
+**Deliberately not claimed:** no provider adapters are registered in this build, so `media.generate` answers
+*"that provider does not have a generation adapter in this build"*. That is the seam working, not a working
+feature. The protocol handler's Electron half (`protocol.handle`) is exercised only in a running app; the
+decisions it depends on are unit-tested, and the handler itself is a packaged-app check for PART-013.
 
 ## Cross-cutting: the environment has two known quirks
 

@@ -102,7 +102,7 @@
 | PART-002 | Consolidation: dead code and real defects | 001 | ✅ One chat execution path; nine small defects closed |
 | PART-003 | Workspace truth: leftovers, docs, dependencies | 002 | ✅ Tree matches intent; docs stop lying; one dependency gone |
 | PART-004 | Capability-based model registry | 002 | ✅ A model can be an image or video model, and the picker knows |
-| PART-005 | Media store, job engine, IPC, `media://` | 004 | The backend a generation can actually run on |
+| PART-005 | Media store, job engine, IPC, `media://` | 004 | ✅ The backend a generation can actually run on |
 | PART-006 | Image adapters: OpenAI + Gemini | 005 | Two confirmed image providers, mocked-tested |
 | PART-007 | Image service and persistence (schema 003) | 006 | Generated images survive a restart and belong to a conversation |
 | PART-008 | Image Studio UI | 007 | A dedicated, on-brand image workflow |
