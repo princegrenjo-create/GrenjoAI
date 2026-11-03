@@ -13,7 +13,7 @@ Not a subscription product, not a marketplace, not multi-tenant. One user, one m
 > models and stored API keys), and configuration files exported under the old marker still
 > import. See [Renaming and data migration](#renaming-and-data-migration).
 
-![The spark mark used by the installer and the taskbar](build/icon.png)
+![The Grenjo AI mark used by the installer, the taskbar and the app](build/icon.png)
 
 ---
 
