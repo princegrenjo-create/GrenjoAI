@@ -22,9 +22,22 @@ export function catalogId(kind: ProviderKind, modelId: string): string {
 
 const EPOCH = '1970-01-01T00:00:00.000Z';
 
+/**
+ * A hint whose provider shutdown date has passed is not offered.
+ *
+ * Filtering here rather than in the UI keeps one rule in one place: no picker,
+ * probe or resolution path can reach a retired id, and the check is a date
+ * comparison instead of a list someone forgets to update.
+ */
+function isRetired(hint: { shutdownDate?: string }, now = new Date()): boolean {
+  if (!hint.shutdownDate) return false;
+  const date = new Date(`${hint.shutdownDate}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime()) && date.getTime() <= now.getTime();
+}
+
 /** Built-in hints for a provider family, shaped like a stored model row. */
 export function listCatalogModels(providerId: string, kind: ProviderKind): ModelDescriptor[] {
-  const hints = MODEL_HINTS[kind] ?? [];
+  const hints = (MODEL_HINTS[kind] ?? []).filter((hint) => !isRetired(hint));
   return hints.map((hint) => ({
     id: catalogId(kind, hint.modelId),
     providerId,

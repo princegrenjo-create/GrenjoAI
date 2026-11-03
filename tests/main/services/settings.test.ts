@@ -83,6 +83,46 @@ describe('settings service', () => {
     ).toBe(true);
   });
 
+  it('imports a 0.1.0 export whose models carry only the four original capability flags', async () => {
+    const { db, service } = harness();
+    // Exactly the shape an export from before the capability model contains: no
+    // imageOutput, imageEditing, video*, audio* or embeddings key at all. It must
+    // import as a working text model rather than being skipped or rejected.
+    const payload = JSON.stringify({
+      app: 'personal-ai-desk',
+      exportedAt: '2026-01-01T00:00:00.000Z',
+      credentials: 'excluded',
+      providers: [
+        { id: 'p-openai', kind: 'openai', name: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
+      ],
+      customModels: [
+        {
+          providerId: 'p-openai',
+          modelId: 'legacy-model',
+          displayName: 'Legacy',
+          capabilities: { chat: true, streaming: true, imageInput: true, toolCalling: false },
+        },
+      ],
+    });
+
+    const result = await service.importConfig(payload);
+    expect(result.applied.some((section) => section.startsWith('custom models'))).toBe(true);
+    const imported = db.models.list('p-openai').find((model) => model.modelId === 'legacy-model');
+    expect(imported).toBeDefined();
+    expect(imported?.capabilities).toMatchObject({
+      chat: true,
+      streaming: true,
+      imageInput: true,
+      toolCalling: false,
+      // The seven flags the file never mentioned resolve to false, not undefined.
+      imageOutput: false,
+      imageEditing: false,
+      videoOutput: false,
+      audioInput: false,
+      embeddings: false,
+    });
+  });
+
   it('refuses an import document that contains something key-shaped', async () => {
     const { service } = harness();
     const payload = JSON.stringify({
