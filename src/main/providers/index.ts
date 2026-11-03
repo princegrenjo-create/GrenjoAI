@@ -6,8 +6,6 @@
  * is the only place provider I/O happens.
  */
 export { createProviderTransport, createProviderTransportWith } from './transport';
-export { runChat, runBuffered } from './executor';
-export type { ChatStreamHooks } from './executor';
 export { createRegistry } from './registry';
 export { createFetch } from './http';
 export type { CreateFetchOptions } from './http';
