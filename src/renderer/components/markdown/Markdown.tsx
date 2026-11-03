@@ -87,9 +87,15 @@ function CodeBlock({ children }: CodeBlockProps): ReactElement {
 /**
  * Markdown is rendered without raw HTML: no `rehype-raw`, no
  * `dangerouslySetInnerHTML` anywhere. Links leave through the external-link
- * policy, images are only rendered from `data:` URLs (an external image would
- * be a network request, and the renderer makes none), and a `javascript:` or
- * plain-HTTP link is rendered as text instead of an anchor.
+ * policy and a `javascript:` or plain-HTTP link is rendered as text instead of
+ * an anchor.
+ *
+ * Images are **always** replaced with their alt text. This is not a
+ * `data:`-only filter: model output cannot be trusted to name an image source
+ * the renderer is allowed to fetch, and the renderer performs no network I/O at
+ * all (`connect-src 'none'`), so a remote image could only fail silently. A
+ * generated image is therefore never delivered through Markdown — it is shown
+ * from a media record the app wrote itself.
  */
 const COMPONENTS: Components = {
   a: ({ href, children }) => {
