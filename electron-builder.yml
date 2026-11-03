@@ -23,9 +23,10 @@ asarUnpack: []
 # Flips the Electron fuses on the packaged binary before the installer is built.
 afterPack: scripts/after-pack.cjs
 
-# User data lives in %APPDATA%\Personal AI Desk (Electron's userData), which is
-# outside the install directory, so upgrades and uninstalls never touch chats or
-# settings. `deleteAppDataOnUninstall` stays false for the same reason.
+# User data lives in %APPDATA%\Grenjo AI Tool (Electron's userData; a legacy
+# "Personal AI Desk" profile is migrated forward once), which is outside the
+# install directory, so upgrades and uninstalls never touch chats or settings.
+# `deleteAppDataOnUninstall` stays false for the same reason.
 win:
   target:
     - target: nsis

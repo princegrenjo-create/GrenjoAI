@@ -20,10 +20,10 @@ are recorded. **NOT BUILT** — deliberately out of this release.
 | Restrictive CSP (`default-src 'none'`, `connect-src 'none'`) | **DONE** | header in `src/main/security.ts`, meta tag in the built HTML |
 | Permissions, navigation, new windows, webview all denied | **DONE** | `src/main/security.ts`, `src/main/window.ts`; navigation is pinned to the exact renderer directory, not the whole `file://` scheme |
 | Electron fuses flipped in the shipped binary | **DONE** | `scripts/after-pack.cjs`; with `ELECTRON_RUN_AS_NODE=1` the packaged exe still starts as an app (probe in `PLAN_EVIDENCE.md`) |
-| Windows installer (NSIS, per-user) | **DONE** | `release/Personal AI Desk-Setup-0.1.0-x64.exe`, 124,081,924 bytes |
+| Windows installer (NSIS, per-user) | **DONE** for v0.1.0; **stale** for v0.2 | `release/Grenjo AI Tool-Setup-0.1.0-x64.exe`, 125,299,894 bytes, built from `06142c3`. The v0.2 tree has not been re-packaged into an installer yet — PART-013 owns that, and the row is corrected then |
 | Install / launch / upgrade / uninstall lifecycle | **DONE** | install exit 0 → 9/9 smoke checks → reinstall exit 0 with data intact → uninstall exit 0, install dir removed, `%APPDATA%` data preserved |
 | Desktop + Start-menu shortcuts | **DONE** | observed after install |
-| User data separate from install directory | **DONE** | `%APPDATA%\Personal AI Desk`; smoke asserts it is outside the install dir |
+| User data separate from install directory | **DONE** | `%APPDATA%\Grenjo AI Tool` (a `%APPDATA%\Personal AI Desk` profile is migrated forward once on first launch); smoke asserts it is outside the install dir |
 | Code signing | **UNAVAILABLE** | no certificate; signing skipped by electron-builder |
 
 ## Data
@@ -137,8 +137,8 @@ are recorded. **NOT BUILT** — deliberately out of this release.
 | IPC message runner | 1 | 10 |
 | Sync + RLS + timeouts | 12 | 86 |
 | Shared contract (params, URL policy, errors, settings, encoding) | 1 | 28 |
-| **Node total** | **42 files** | **477** |
-| Renderer (primitives, dialog, chat, shell, four feature pages) | **12 files** | **132** |
+| **Node total** | **52 files** | **611** |
+| Renderer (primitives, dialog, chat, shell, four feature pages) | **16 files** | **175** |
 
 Both suites run with `npm test`. The node suite needs no network and no credentials;
 the renderer suite runs under jsdom against a fake `DesktopApi`.
@@ -147,14 +147,14 @@ the renderer suite runs under jsdom against a fake `DesktopApi`.
 
 | Artifact | Raw | Gzip |
 |---|---|---|
-| `dist/renderer` JS | 700.30 kB | 212.75 kB |
-| `dist/renderer` CSS | 62.15 kB | 9.41 kB |
-| `dist/main/index.cjs` | 1,190.78 kB | 240.52 kB |
-| `dist/preload/index.cjs` | 5.26 kB | 1.50 kB |
+| `dist/renderer` JS | 718.12 kB | 218.29 kB |
+| `dist/renderer` CSS | 67.19 kB | 9.92 kB |
+| `dist/main/index.cjs` | 1,251.33 kB | 255.19 kB |
+| `dist/preload/index.cjs` | 6.06 kB | 1.65 kB |
 
-The renderer exceeds the 200 kB gzip guideline by ~13 kB, almost entirely
-`highlight.js` via `rehype-highlight`. It is a local-file load, not a network
-fetch, so it does not affect start time on this platform; if it matters, restrict
+Measured at `1c6cc21` (PART-002). The renderer exceeds the 200 kB gzip guideline by ~18 kB, still
+almost entirely the Markdown syntax highlighter pulled in by `rehype-highlight`. It is a local-file
+load, not a network fetch, so it does not affect start time on this platform; if it matters, restrict
 the highlighter to a language subset or lazy-load it. Recorded rather than hidden.
 
 ## Attachments and voice (added after the first release)
@@ -219,21 +219,28 @@ suite (including under a shifted timezone) with identical results.
 - Subscriptions, payments, a public marketplace, multi-tenant SaaS.
 - Local model execution (llama.cpp / Ollama hosting inside the app).
 - Agent tool execution, shell access, multi-agent orchestration.
-- A web or mobile client — the architecture is prepared for them (shared contracts, platform-agnostic
-  provider adapters, a credential-store interface), but they are not built.
+- A **web** client: the renderer is already a browser page, but nothing serves it over HTTP; there is no
+  server build, no session model and no hosted deployment.
+- A **mobile** client in this repository: one existed (an Expo app, 63 files) and was archived at tag
+  `mobile-archive-2026-11-03` by owner decision, because 11 of its files duplicated `src/` byte for byte.
+  The owner maintains the Android application separately.
 - Code signing.
 
 ---
 
 ## Installer details
 
+The table below describes the **v0.1.0** installer, the only one whose full lifecycle has been exercised.
+It was built from `06142c3`; it predates the v0.2 consolidation, so its hash will change when PART-013
+re-certifies the current tree. Recorded honestly rather than silently re-pointed at an unverified file.
+
 | Field | Value |
 |---|---|
-| File | `release/Personal AI Desk-Setup-0.1.0-x64.exe` |
-| Size | 124,229,063 bytes |
-| SHA-256 | `7223DEC30286CC3427185E27D2D69A84A78F6145CDCCA41B637FFE88AD81DA38` |
+| File | `release/Grenjo AI Tool-Setup-0.1.0-x64.exe` |
+| Size | 125,299,894 bytes |
+| SHA-256 | `55818C47…632349` (full value in `PLAN_EVIDENCE.md`) |
 | Target | NSIS, x64, per-user, non-one-click |
-| Install dir | `%LOCALAPPDATA%\Programs\Personal AI Desk` (changeable during setup) |
+| Install dir | `%LOCALAPPDATA%\Programs\Grenjo AI Tool` (changeable during setup) |
 | Electron fuses | Run-As-Node off, NODE_OPTIONS off, CLI inspect off, only-load-from-asar, asar integrity, cookie encryption |
 | Signed | No — SmartScreen will warn |
-| Verified cycle | install (exit 0, shortcuts created) → installed-exe smoke 9/9 → data preserved → uninstall (exit 0, program gone, `%APPDATA%` intact) |
+| Verified cycle | **on the pre-rename artifact** (`Personal AI Desk-Setup-0.1.0-x64.exe`, 124,229,063 bytes, sha256 `7223DEC3…81DA38`): install (exit 0, shortcuts created) → installed-exe smoke 9/9 → data preserved → uninstall (exit 0, program gone, `%APPDATA%` intact). **Not yet repeated for the v0.2 tree.** |

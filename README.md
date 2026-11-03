@@ -51,17 +51,17 @@ Not a subscription product, not a marketplace, not multi-tenant. One user, one m
 3. **The installer is not code-signed.** Windows SmartScreen will warn you the first time you run
    it. That is expected: signing needs a purchased certificate. The SHA-256 of the built installer
    is recorded in [docs/FEATURES.md](docs/FEATURES.md) so you can verify what you built.
-4. Launch **Personal AI Desk** from the shortcut.
+4. Launch **Grenjo AI Tool** from the shortcut.
 
 **Where your data lives** — outside the install directory, so upgrades and uninstalls never touch it:
 
 | Path | Contents |
 |---|---|
-| `%APPDATA%\Personal AI Desk\data\app.db` | SQLite database: conversations, messages, agents, custom models, provider configuration (no keys), settings, sync outbox |
-| `%APPDATA%\Personal AI Desk\credentials.bin` | Provider API keys, encrypted with Windows DPAPI (Electron `safeStorage`) |
-| `%APPDATA%\Personal AI Desk\logs\main.log` | Redacted operational log (rotates at 2 MB) |
+| `%APPDATA%\Grenjo AI Tool\data\app.db` | SQLite database: conversations, messages, agents, custom models, provider configuration (no keys), settings, sync outbox |
+| `%APPDATA%\Grenjo AI Tool\credentials.bin` | Provider API keys, encrypted with Windows DPAPI (Electron `safeStorage`) |
+| `%APPDATA%\Grenjo AI Tool\logs\main.log` | Redacted operational log (rotates at 2 MB) |
 
-Uninstalling removes the program and shortcuts and **keeps** `%APPDATA%\Personal AI Desk`.
+Uninstalling removes the program and shortcuts and **keeps** `%APPDATA%\Grenjo AI Tool`.
 Reinstalling, or installing a newer version over an older one, keeps everything as well.
 
 ---
