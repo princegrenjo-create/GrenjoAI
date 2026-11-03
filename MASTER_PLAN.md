@@ -272,7 +272,19 @@ typecheck 0, node **624**, renderer **195**, gate 235 files / 0 blocking, build 
 
 ---
 
-## PART-005 — Media store, job engine, IPC surface, `media://`
+## PART-005 — Media store, job engine, IPC surface, `media://` — **COMPLETE 2026-11-03**
+
+**State:** complete. Commits `c663408` (schema 3 + store), `3ef1d2a` (engine), `e85958e` (service), `af8ff40`
+(IPC + protocol + CSP). Evidence: `PLAN_EVIDENCE.md` §"PART-005". Gates at `9e67925`: typecheck 0, node **692**
+tests, renderer 195, gate 250 files / 0 blocking, build 0.
+
+**Deliberately not claimed:** no media adapter is registered yet, so `media.generate` answers "no adapter in
+this build". PART-006 registers the first two and turns that into a working feature — verified against mocks,
+with live provider calls reported `UNAVAILABLE` without keys.
+
+---
+
+## PART-005 (original brief)
 
 - **G:** Give generation somewhere to live: durable bytes, a job that survives a restart, progress that reaches
   the renderer, and a way to display a 40 MB video without base64-ing it through IPC.
