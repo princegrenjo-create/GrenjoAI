@@ -139,3 +139,15 @@ export function dialog(name: string | RegExp): HTMLElement {
 export function withinDialog(name: string | RegExp): ReturnType<typeof within> {
   return within(dialog(name));
 }
+
+/**
+ * A destructive confirmation, by its accessible name. It is an `alertdialog`
+ * rather than a `dialog`, so a page that regresses to a plain modal fails here.
+ */
+export function alertDialog(name: string | RegExp): HTMLElement {
+  return screen.getByRole('alertdialog', { name });
+}
+
+export function withinAlertDialog(name: string | RegExp): ReturnType<typeof within> {
+  return within(alertDialog(name));
+}

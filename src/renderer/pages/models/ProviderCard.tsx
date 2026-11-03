@@ -16,6 +16,7 @@ import {
   Badge,
   Button,
   Card,
+  ConfirmDialog,
   Dialog,
   ErrorState,
   IconButton,
@@ -379,36 +380,16 @@ export function ProviderCard({
         />
       </Dialog>
 
-      <Dialog
+      <ConfirmDialog
         open={removeOpen}
-        onClose={() => {
-          if (!removeBusy) setRemoveOpen(false);
-        }}
+        onClose={() => setRemoveOpen(false)}
         title="Remove this provider?"
-        description={`“${provider.name}” and its discovered models will be removed from this device, and its API key will be deleted from the Windows credential store. Conversations that used it keep their history. This cannot be undone.`}
-        size="sm"
-        initialFocus="cancel"
-        closeOnOverlayClick={false}
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              disabled={removeBusy}
-              onClick={() => setRemoveOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              loading={removeBusy}
-              onClick={() => {
-                void removeProvider();
-              }}
-            >
-              Remove provider
-            </Button>
-          </>
-        }
+        description={`“${provider.name}” and its discovered models will be removed from this device, and its API key will be deleted from the Windows credential store. Conversations that used it keep their history.`}
+        confirmLabel="Remove provider"
+        busy={removeBusy}
+        onConfirm={() => {
+          void removeProvider();
+        }}
       />
     </Card>
   );

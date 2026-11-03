@@ -11,7 +11,7 @@ import type { Agent, AgentInput } from '@shared/types';
 import {
   Badge,
   Button,
-  Dialog,
+  ConfirmDialog,
   EmptyState,
   ErrorState,
   Skeleton,
@@ -281,36 +281,20 @@ export function AgentsPage(): ReactElement {
         </div>
       ) : null}
 
-      <Dialog
+      <ConfirmDialog
         open={deleting !== null}
-        onClose={() => {
-          if (!deleteBusy) setDeleting(null);
-        }}
+        onClose={() => setDeleting(null)}
         title="Delete this agent?"
         description={
           deleting
-            ? `“${deleting.name}” will be removed from this device. Conversations that used it keep their history. This cannot be undone.`
+            ? `“${deleting.name}” will be removed from this device. Conversations that used it keep their history.`
             : undefined
         }
-        size="sm"
-        initialFocus="cancel"
-        closeOnOverlayClick={false}
-        footer={
-          <>
-            <Button variant="secondary" disabled={deleteBusy} onClick={() => setDeleting(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              loading={deleteBusy}
-              onClick={() => {
-                void confirmDelete();
-              }}
-            >
-              Delete agent
-            </Button>
-          </>
-        }
+        confirmLabel="Delete agent"
+        busy={deleteBusy}
+        onConfirm={() => {
+          void confirmDelete();
+        }}
       />
     </Page>
   );

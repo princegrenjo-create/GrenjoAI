@@ -14,7 +14,7 @@ import type { ModelDescriptor, ProviderConfig } from '@shared/types';
 import {
   Badge,
   Button,
-  Dialog,
+  ConfirmDialog,
   EmptyState,
   ErrorState,
   Input,
@@ -262,36 +262,20 @@ export function ModelsSection({
         }}
       />
 
-      <Dialog
+      <ConfirmDialog
         open={deleting !== null}
-        onClose={() => {
-          if (!deleteBusy) setDeleting(null);
-        }}
+        onClose={() => setDeleting(null)}
         title="Delete this custom model?"
         description={
           deleting
-            ? `“${deleting.displayName}” (${deleting.modelId}) will be removed from this device. Conversations that used it keep their history, but the model will no longer be selectable. This cannot be undone.`
+            ? `“${deleting.displayName}” (${deleting.modelId}) will be removed from this device. Conversations that used it keep their history, but the model will no longer be selectable.`
             : undefined
         }
-        size="sm"
-        initialFocus="cancel"
-        closeOnOverlayClick={false}
-        footer={
-          <>
-            <Button variant="secondary" disabled={deleteBusy} onClick={() => setDeleting(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              loading={deleteBusy}
-              onClick={() => {
-                void confirmDelete();
-              }}
-            >
-              Delete model
-            </Button>
-          </>
-        }
+        confirmLabel="Delete model"
+        busy={deleteBusy}
+        onConfirm={() => {
+          void confirmDelete();
+        }}
       >
         {deleteError ? (
           <ErrorState
@@ -300,7 +284,7 @@ export function ModelsSection({
             description={deleteError}
           />
         ) : null}
-      </Dialog>
+      </ConfirmDialog>
     </>
   );
 }

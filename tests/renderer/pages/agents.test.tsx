@@ -11,7 +11,7 @@ import {
   makeProvider,
   never,
   renderPage,
-  withinDialog,
+  withinAlertDialog,
 } from './support';
 
 const AGENT = makeAgent({
@@ -123,14 +123,17 @@ describe('Agents page', () => {
     await screen.findByLabelText('Name');
     await user.click(screen.getByRole('button', { name: 'Delete agent' }));
 
-    const confirm = withinDialog('Delete this agent?');
+    const confirm = withinAlertDialog('Delete this agent?');
     expect(confirm.getByText(/“Writing partner” will be removed/)).toBeInTheDocument();
+    expect(confirm.getByText(/This cannot be undone\./)).toBeInTheDocument();
 
     await user.click(confirm.getByRole('button', { name: 'Cancel' }));
     expect(fake.api.agents.remove).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole('button', { name: 'Delete agent' }));
-    await user.click(withinDialog('Delete this agent?').getByRole('button', { name: 'Delete agent' }));
+    await user.click(
+      withinAlertDialog('Delete this agent?').getByRole('button', { name: 'Delete agent' }),
+    );
 
     await waitFor(() => expect(fake.api.agents.remove).toHaveBeenCalledWith('agent-1'));
   });

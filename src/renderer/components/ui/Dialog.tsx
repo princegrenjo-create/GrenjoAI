@@ -42,13 +42,20 @@ export interface DialogProps {
    * starts on the safe choice.
    */
   initialFocus?: 'form' | 'cancel';
+  /**
+   * The ARIA role. `alertdialog` is the role for a confirmation that interrupts
+   * the user with a warning — a destructive action — where a plain `dialog` is
+   * an ordinary task surface. `ConfirmDialog` chooses it from its tone.
+   */
+  role?: 'dialog' | 'alertdialog';
 }
 
 /**
  * The project's modal. It is not a `<dialog>` with browser chrome: it is a
  * portal with a focus trap, Escape to close, focus restored to the trigger, a
  * body scroll lock, and `aria-modal` + labelled/described wiring. Destructive
- * confirmation always goes through this component — never `window.confirm`.
+ * confirmation is `ConfirmDialog` on top of this component — never
+ * `window.confirm`.
  */
 export function Dialog({
   open,
@@ -60,6 +67,7 @@ export function Dialog({
   size = 'md',
   closeOnOverlayClick = true,
   initialFocus = 'form',
+  role = 'dialog',
 }: DialogProps): ReactElement | null {
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -136,7 +144,7 @@ export function Dialog({
       <div
         ref={dialogRef}
         className={`pds-dialog pds-dialog--${size}`}
-        role="dialog"
+        role={role}
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}

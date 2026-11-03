@@ -12,6 +12,7 @@ import {
   makeProvider,
   never,
   renderPage,
+  withinAlertDialog,
   withinDialog,
 } from './support';
 
@@ -310,5 +311,84 @@ describe('Models & Providers page', () => {
     expect(section?.textContent ?? '').toContain('My gateway model');
     expect(screen.queryByText(/No custom models yet/)).toBeNull();
     expect(screen.getByRole('button', { name: 'Delete My gateway model' })).toBeInTheDocument();
+  });
+
+  it('asks before removing a provider and calls providers.remove only on the confirm', async () => {
+    const fake = installApi({ providers: [makeProvider()], models: [makeModel()] });
+    const remove = vi.fn(async () => undefined);
+    fake.api.providers.remove = remove;
+
+    const { user } = renderPage(fake, <ModelsPage />);
+    await user.click(await screen.findByRole('button', { name: 'Remove DeepSeek' }));
+
+    const confirm = withinAlertDialog('Remove this provider?');
+    expect(confirm.getByText(/“DeepSeek” and its discovered models will be removed/)).toBeInTheDocument();
+    expect(confirm.getByText(/API key will be deleted from the Windows credential store/)).toBeInTheDocument();
+    expect(confirm.getByText(/This cannot be undone\./)).toBeInTheDocument();
+    expect(confirm.getByRole('button', { name: 'Cancel' })).toHaveFocus();
+
+    await user.click(confirm.getByRole('button', { name: 'Cancel' }));
+    expect(remove).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Remove DeepSeek' }));
+    await user.click(
+      withinAlertDialog('Remove this provider?').getByRole('button', { name: 'Remove provider' }),
+    );
+
+    await waitFor(() => expect(remove).toHaveBeenCalledWith('provider-1'));
+  });
+
+  it('asks before deleting a custom model and calls models.remove only on the confirm', async () => {
+    const custom = makeModel({
+      id: 'model-1',
+      source: 'custom',
+      displayName: 'My gateway model',
+      modelId: 'gw-1',
+    });
+    const fake = installApi({ providers: [makeProvider()], models: [custom] });
+    const remove = vi.fn(async () => undefined);
+    fake.api.models.remove = remove;
+
+    const { user } = renderPage(fake, <ModelsPage />);
+    await user.click(await screen.findByRole('button', { name: 'Delete My gateway model' }));
+
+    const confirm = withinAlertDialog('Delete this custom model?');
+    expect(confirm.getByText(/“My gateway model” \(gw-1\) will be removed/)).toBeInTheDocument();
+    expect(remove).not.toHaveBeenCalled();
+
+    await user.click(confirm.getByRole('button', { name: 'Cancel' }));
+    expect(remove).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Delete My gateway model' }));
+    await user.click(
+      withinAlertDialog('Delete this custom model?').getByRole('button', { name: 'Delete model' }),
+    );
+
+    await waitFor(() => expect(remove).toHaveBeenCalledWith('model-1'));
+  });
+
+  it('keeps the delete prompt open with the reason when the delete fails', async () => {
+    const custom = makeModel({
+      id: 'model-1',
+      source: 'custom',
+      displayName: 'My gateway model',
+      modelId: 'gw-1',
+    });
+    const fake = installApi({ providers: [makeProvider()], models: [custom] });
+    fake.api.models.remove = vi.fn(async () => {
+      throw bridgeError('storage', 'The database is locked.');
+    });
+
+    const { user } = renderPage(fake, <ModelsPage />);
+    await user.click(await screen.findByRole('button', { name: 'Delete My gateway model' }));
+
+    await user.click(
+      withinAlertDialog('Delete this custom model?').getByRole('button', { name: 'Delete model' }),
+    );
+
+    const confirm = withinAlertDialog('Delete this custom model?');
+    expect(await confirm.findByText('The model was not deleted')).toBeInTheDocument();
+    expect(confirm.getByText('The database is locked.')).toBeInTheDocument();
+    expect(confirm.getByRole('button', { name: 'Delete model' })).toBeEnabled();
   });
 });

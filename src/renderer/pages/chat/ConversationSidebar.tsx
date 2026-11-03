@@ -3,6 +3,7 @@ import type { Conversation } from '@shared/types';
 import { PencilIcon, PlusIcon, SearchIcon, TrashIcon, CloseIcon } from '@renderer/components/icons';
 import {
   Button,
+  ConfirmDialog,
   Dialog,
   EmptyState,
   ErrorState,
@@ -242,40 +243,20 @@ export function ConversationSidebar({
         />
       </Dialog>
 
-      <Dialog
+      <ConfirmDialog
         open={deleting !== null}
-        onClose={() => {
-          if (!busy) setDeleting(null);
-        }}
+        onClose={() => setDeleting(null)}
         title="Delete conversation?"
         description={
           deleting
-            ? `“${deleting.title}” and its ${formatCount(deleting.messageCount, 'message')} will be removed from this device. This cannot be undone.`
+            ? `“${deleting.title}” and its ${formatCount(deleting.messageCount, 'message')} will be removed from this device.`
             : undefined
         }
-        size="sm"
-        initialFocus="cancel"
-        closeOnOverlayClick={false}
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              onClick={() => setDeleting(null)}
-              disabled={busy}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              loading={busy}
-              onClick={() => {
-                void confirmDelete();
-              }}
-            >
-              Delete conversation
-            </Button>
-          </>
-        }
+        confirmLabel="Delete conversation"
+        busy={busy}
+        onConfirm={() => {
+          void confirmDelete();
+        }}
       />
     </aside>
   );

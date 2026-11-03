@@ -17,6 +17,7 @@ export {
   type ListItemProps,
   type ListProps,
 } from './Card';
+export { ConfirmDialog, DESTRUCTIVE_WARNING, type ConfirmDialogProps, type ConfirmTone } from './ConfirmDialog';
 export { Dialog, type DialogProps } from './Dialog';
 export { EmptyState, type EmptyStateProps } from './EmptyState';
 export { ErrorState, type ErrorStateProps } from './ErrorState';

@@ -139,7 +139,7 @@ describe('Conversation sidebar', () => {
 
     await user.click(screen.getByRole('button', { name: 'Delete Plan the week' }));
 
-    const dialog = await screen.findByRole('dialog', { name: 'Delete conversation?' });
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete conversation?' });
     expect(dialog).toHaveAccessibleDescription(/Plan the week/);
     expect(dialog).toHaveAccessibleDescription(/cannot be undone/);
     expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
@@ -147,7 +147,7 @@ describe('Conversation sidebar', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Delete conversation' }));
 
     await waitFor(() => expect(fake.api.conversations.remove).toHaveBeenCalledWith('c1'));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     expect(onDeleted).toHaveBeenCalledWith('c1');
     expect(confirmSpy).not.toHaveBeenCalled();
     expect(screen.queryByText('Plan the week')).not.toBeInTheDocument();
