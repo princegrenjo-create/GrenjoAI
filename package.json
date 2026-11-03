@@ -24,7 +24,7 @@
     "test:coverage": "vitest run --coverage",
     "audit:gate": "node scripts/quality-gate.mjs",
     "icon": "node scripts/make-icon.mjs",
-    "dist": "npm run build && electron-builder --win nsis --config electron-builder.yml",
+    "dist": "npm run audit:gate && npm run typecheck && npm test && npm run build && electron-builder --win nsis --config electron-builder.yml",
     "pack": "npm run build && electron-builder --win --dir --config electron-builder.yml",
     "smoke:packaged": "node scripts/smoke-packaged.mjs"
   },
