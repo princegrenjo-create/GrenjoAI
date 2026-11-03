@@ -17,7 +17,7 @@ import type {
 } from '../../../shared/repository-contract';
 import type { GenerationJob, GenerationJobStatus, GenerationMedia, MediaKind, MediaParams } from '../../../shared/media';
 import { JOB_STATUSES } from '../../../shared/media';
-import { bool, isRow, jsonOrNull, newId, nowIso, nullableNum, nullableStr, num, parseJsonObject, pickOneOf, str } from '../codec';
+import { bool, isRow, jsonOrNull, newId, nowIso, nullableNum, nullableStr, num, parseJson, parseJsonObject, pickOneOf, str, stringArray } from '../codec';
 import type { DbRow } from '../codec';
 import { DbError } from '../errors';
 import { boundedInt } from '../codec';
@@ -29,7 +29,7 @@ const MEDIA_COLUMNS = `id, kind, provider_id, model_id, prompt, negative_prompt,
 
 const JOB_COLUMNS = `id, task, provider_id, model_id, status, progress, prompt, params_json,
   remote_id, poll_url, error_code, error_message, retryable, attempts, next_poll_at, media_id,
-  created_at, updated_at, finished_at`;
+  reference_ids, mask_media_id, conversation_id, message_id, created_at, updated_at, finished_at`;
 
 const MEDIA_KINDS: readonly MediaKind[] = ['image', 'video'];
 
@@ -90,6 +90,10 @@ export function toGenerationJob(row: DbRow): GenerationJob {
     attempts: num(row.attempts),
     nextPollAt: nullableStr(row.next_poll_at),
     mediaId: nullableStr(row.media_id),
+    referenceMediaIds: stringArray(parseJson(row.reference_ids)),
+    maskMediaId: nullableStr(row.mask_media_id),
+    conversationId: nullableStr(row.conversation_id),
+    messageId: nullableStr(row.message_id),
     createdAt: str(row.created_at),
     updatedAt: str(row.updated_at),
     finishedAt: nullableStr(row.finished_at),
@@ -177,7 +181,7 @@ export class SqliteGenerationJobRepository extends BaseRepository implements Gen
     const now = nowIso();
     this.sql.run(
       `INSERT INTO generation_jobs (${JOB_COLUMNS})
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         input.task,
@@ -195,6 +199,10 @@ export class SqliteGenerationJobRepository extends BaseRepository implements Gen
         0,
         now,
         null,
+        jsonOrNull(input.referenceMediaIds ?? []),
+        input.maskMediaId ?? null,
+        input.conversationId ?? null,
+        input.messageId ?? null,
         now,
         now,
         null,

@@ -411,6 +411,10 @@ export const mediaGenerateSchema = z
     providerId: idString.optional(),
     modelId: z.string().trim().min(1).max(200).optional(),
     conversationId: idString.nullable().optional(),
+    messageId: idString.nullable().optional(),
+    /** Reference media ids: ids only, never bytes. */
+    referenceMediaIds: z.array(idString).max(16).optional(),
+    maskMediaId: idString.nullable().optional(),
   })
   .strict();
 

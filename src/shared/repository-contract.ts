@@ -267,6 +267,11 @@ export interface NewJobInput {
   modelId: string;
   prompt: string;
   params: MediaParams;
+  /** Media rows to use as references; ids only, the bytes stay in the store. */
+  referenceMediaIds?: Id[];
+  maskMediaId?: Id | null;
+  conversationId?: Id | null;
+  messageId?: Id | null;
 }
 
 export interface JobPatch {

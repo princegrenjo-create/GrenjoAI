@@ -23,7 +23,7 @@
  *    `succeeded` once the file is on disk and its row exists.
  */
 import type { GenerationJob, GenerationJobStatus, MediaKind, MediaParams } from '@shared/media';
-import type { MediaJobAdapter, MediaJobOutcome, MediaOutput } from '@shared/media-job';
+import type { MediaJobAdapter, MediaJobOutcome, MediaOutput, MediaReference } from '@shared/media-job';
 import type { GenerationJobRepository, NewMediaInput } from '@shared/repository-contract';
 /**
  * A logger that accepts structured metadata, matching the main-process logger.
@@ -50,6 +50,13 @@ export interface JobEngineOptions {
   persist(job: GenerationJob, output: MediaOutput): Promise<string>;
   logger?: JobLogger;
   clock?: Clock;
+  /**
+   * Resolve the bytes a job was given as references, at submit time.
+   *
+   * Deferred rather than stored in the engine so a job row stays small and a
+   * reference read from the store always reflects the file on disk.
+   */
+  references?(job: GenerationJob): Promise<{ references: MediaReference[]; mask: MediaReference | null }>;
   /** Give up on a job older than this. */
   maxJobAgeMs?: number;
   /** Attempts before a retryable failure becomes terminal. */
@@ -68,6 +75,10 @@ export interface EnqueueInput {
   prompt: string;
   negativePrompt?: string | null;
   params: MediaParams;
+  referenceMediaIds?: Id[];
+  maskMediaId?: Id | null;
+  conversationId?: Id | null;
+  messageId?: Id | null;
 }
 
 export interface TickSummary {
@@ -116,6 +127,10 @@ export class JobEngine {
       modelId: input.modelId,
       prompt: input.prompt,
       params: input.params,
+      referenceMediaIds: input.referenceMediaIds ?? [],
+      maskMediaId: input.maskMediaId ?? null,
+      conversationId: input.conversationId ?? null,
+      messageId: input.messageId ?? null,
     });
     this.emit(job);
     return job;
@@ -268,12 +283,14 @@ export class JobEngine {
 
   private async safeSubmit(adapter: MediaJobAdapter, job: GenerationJob): Promise<MediaJobOutcome | null> {
     try {
+      const resolved = await this.options.references?.(job);
       return await adapter.submit({
         task: job.task,
         modelId: job.modelId,
         prompt: job.prompt,
         negativePrompt: null,
         params: job.params,
+        ...(resolved ? { references: resolved.references, mask: resolved.mask } : {}),
       });
     } catch (error) {
       this.recordTransportFailure(job, error);

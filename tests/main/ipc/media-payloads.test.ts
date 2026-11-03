@@ -98,3 +98,36 @@ describe('list and id payloads', () => {
     expect(mediaJobsQuerySchema.safeParse(501).success).toBe(false);
   });
 });
+
+describe('reference payloads', () => {
+  it('accepts reference ids and a mask id alongside a prompt', () => {
+    const parsed = mediaGenerateSchema.parse({
+      task: 'image',
+      prompt: 'Make it snow',
+      referenceMediaIds: ['m-1', 'm-2'],
+      maskMediaId: 'm-3',
+      conversationId: 'c-1',
+    });
+    expect(parsed.referenceMediaIds).toEqual(['m-1', 'm-2']);
+    expect(parsed.maskMediaId).toBe('m-3');
+  });
+
+  it('refuses more than sixteen references before anything reaches the service', () => {
+    const result = mediaGenerateSchema.safeParse({
+      task: 'image',
+      prompt: 'x',
+      referenceMediaIds: Array.from({ length: 17 }, (_, index) => `m-${index}`),
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('refuses a reference list that is not a list of ids', () => {
+    expect(
+      mediaGenerateSchema.safeParse({ task: 'image', prompt: 'x', referenceMediaIds: 'm-1' }).success,
+    ).toBe(false);
+    expect(
+      mediaGenerateSchema.safeParse({ task: 'image', prompt: 'x', referenceMediaIds: [{ id: 'm' }] })
+        .success,
+    ).toBe(false);
+  });
+});

@@ -18,6 +18,7 @@ import type { DbLogger } from '../log';
 import { INITIAL_SCHEMA_SQL } from './001-initial-schema';
 import { MESSAGE_ATTACHMENTS_SQL } from './002-message-attachments';
 import { MEDIA_SCHEMA_SQL } from './003-media';
+import { MEDIA_JOB_LINKS_SQL } from './004-media-job-links';
 
 export interface Migration {
   readonly version: number;
@@ -33,6 +34,8 @@ export const MIGRATIONS: readonly Migration[] = [
   // Additive: two new tables for generated media and the jobs that produce it.
   // No existing table or row is touched. Local-only — no sync header.
   { version: 3, name: 'media', sql: MEDIA_SCHEMA_SQL },
+  // Additive columns: what a job was given, and where its result belongs.
+  { version: 4, name: 'media-job-links', sql: MEDIA_JOB_LINKS_SQL },
 ];
 
 const SCHEMA_MIGRATIONS_SQL = `

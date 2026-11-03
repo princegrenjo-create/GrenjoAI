@@ -90,6 +90,13 @@ export interface GenerationJob {
   /** When the engine should poll next; the scheduler reads this. */
   nextPollAt: string | null;
   mediaId: Id | null;
+  /** Media rows this job was given as references (image-to-image, image-to-video). */
+  referenceMediaIds: Id[];
+  /** Optional inpainting mask, where the provider documents one. */
+  maskMediaId: Id | null;
+  /** Where the result belongs, recorded on the job so a restart cannot orphan it. */
+  conversationId: Id | null;
+  messageId: Id | null;
   createdAt: string;
   updatedAt: string;
   finishedAt: string | null;
@@ -117,6 +124,8 @@ export const MEDIA_LIMITS = {
   maxTotalBytes: 8 * 1024 * 1024 * 1024,
   /** Prompt ceiling, matching the largest documented provider limit. */
   maxPromptChars: 32_000,
+  /** Reference images a job may carry. 16 is the largest documented by a provider. */
+  maxReferenceImages: 16,
   /** How many jobs may run at once per provider. Providers document their own caps. */
   defaultMaxConcurrentJobs: 2,
 } as const;

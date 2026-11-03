@@ -49,6 +49,15 @@ export interface GenerateInput {
   modelId?: string;
   conversationId?: string | null;
   messageId?: string | null;
+  /**
+   * Media rows to use as references: image-to-image, or image-to-video.
+   *
+   * Ids, not bytes, so the IPC payload stays small and the file on disk is the
+   * authority at submit time.
+   */
+  referenceMediaIds?: string[];
+  /** Optional inpainting mask, where the model documents one. */
+  maskMediaId?: string | null;
 }
 
 export interface MediaServiceOptions {
@@ -100,7 +109,12 @@ export function createMediaService(options: MediaServiceOptions): MediaService {
     persist: async (job, output) => {
       // Bytes first, row second: a row that points at no file is worse than no row.
       const stored = store.save(output.bytes, output.mime, job.task);
-      const row = db.media.insert(mediaInputFor(job, output, stored));
+      const row = db.media.insert(
+        mediaInputFor(job, output, stored, {
+          conversationId: job.conversationId,
+          messageId: job.messageId,
+        }),
+      );
       logger.info('Generated media stored', {
         mediaId: row.id,
         jobId: job.id,
@@ -111,6 +125,38 @@ export function createMediaService(options: MediaServiceOptions): MediaService {
     },
     logger,
     clock: options.now,
+    /*
+     * References are read at submit time, not stored on the job: the row keeps
+     * ids, and the file on disk stays the authority. A reference whose file was
+     * deleted is skipped rather than failing the whole job, and the count is
+     * capped at the smallest documented limit across providers.
+     */
+    references: async (job) => {
+      const read = (id: string): { bytes: Uint8Array; mime: string } | null => {
+        const row = db.media.get(id);
+        if (!row) {
+          logger.warn('A reference media row is missing; skipping it', { jobId: job.id, mediaId: id });
+          return null;
+        }
+        try {
+          return { bytes: new Uint8Array(store.read(row.relativePath)), mime: row.mime };
+        } catch (error) {
+          logger.warn('A reference file could not be read; skipping it', {
+            jobId: job.id,
+            mediaId: id,
+            message: error instanceof Error ? error.message : String(error),
+          });
+          return null;
+        }
+      };
+
+      const references = job.referenceMediaIds
+        .slice(0, MEDIA_LIMITS.maxReferenceImages)
+        .map(read)
+        .filter((entry): entry is { bytes: Uint8Array; mime: string } => entry !== null);
+      const mask = job.maskMediaId ? read(job.maskMediaId) : null;
+      return { references, mask };
+    },
     onChange: (job) => options.onJobChange?.(job),
   });
 
@@ -245,12 +291,17 @@ export function createMediaService(options: MediaServiceOptions): MediaService {
         );
       }
 
+      const referenceMediaIds = validateReferences(input, db);
       const job = engine.enqueue({
         task: input.task,
         providerId: target.providerId,
         modelId: target.modelId,
         prompt,
         params: input.params ?? {},
+        referenceMediaIds,
+        maskMediaId: input.maskMediaId ?? null,
+        conversationId: input.conversationId ?? null,
+        messageId: input.messageId ?? null,
       });
 
       logger.info('Generation queued', {
@@ -349,4 +400,51 @@ export function createMediaService(options: MediaServiceOptions): MediaService {
       this.stop();
     },
   };
+}
+
+/**
+ * Checks the reference ids a caller supplied, and returns the ones that will be
+ * used.
+ *
+ * A reference must exist, be an image, and fit the documented count. The mask is
+ * optional but only meaningful alongside a reference — a mask with nothing to mask
+ * is silently ignored by every provider, so it is refused here rather than sent.
+ */
+function validateReferences(
+  input: GenerateInput,
+  db: Database,
+): string[] {
+  const ids = input.referenceMediaIds ?? [];
+  if (ids.length === 0) {
+    if (input.maskMediaId) {
+      throw new MediaServiceError(
+        'A mask needs at least one reference image to apply to.',
+        'validation',
+      );
+    }
+    return [];
+  }
+  if (ids.length > MEDIA_LIMITS.maxReferenceImages) {
+    throw new MediaServiceError(
+      `At most ${MEDIA_LIMITS.maxReferenceImages} reference images can be used at once.`,
+      'validation',
+    );
+  }
+
+  for (const id of [...ids, ...(input.maskMediaId ? [input.maskMediaId] : [])]) {
+    const row = db.media.get(id);
+    if (!row) {
+      throw new MediaServiceError(
+        'A reference image you selected no longer exists. Pick another one.',
+        'not_found',
+      );
+    }
+    if (row.kind !== 'image') {
+      throw new MediaServiceError(
+        'Only images can be used as references. A video cannot be one.',
+        'validation',
+      );
+    }
+  }
+  return [...ids];
 }

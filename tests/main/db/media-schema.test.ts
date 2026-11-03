@@ -45,8 +45,8 @@ function seedMedia(overrides: Partial<Parameters<typeof t.db.media.insert>[0]> =
 
 describe('schema 3 — media', () => {
   it('is the current version and creates both tables', () => {
-    expect(LATEST_SCHEMA_VERSION).toBe(3);
-    expect(t.db.migrations.version()).toBe(3);
+    expect(LATEST_SCHEMA_VERSION).toBe(4);
+    expect(t.db.migrations.version()).toBe(4);
 
     const tables = t.db.sql
       .query<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table'")
@@ -59,7 +59,7 @@ describe('schema 3 — media', () => {
     // Build a database that stops at v2, exactly as an existing install would be.
     const path = t.filePath;
     const partial = openDatabase(path);
-    partial.sql.run('DELETE FROM schema_migrations WHERE version = 3');
+    partial.sql.run('DELETE FROM schema_migrations WHERE version >= 3');
     partial.sql.run('DROP TABLE IF EXISTS media');
     partial.sql.run('DROP TABLE IF EXISTS generation_jobs');
     const conversation = partial.conversations.create({ title: 'Before the upgrade' });
@@ -67,7 +67,7 @@ describe('schema 3 — media', () => {
     partial.close();
 
     const upgraded = openDatabase(path);
-    expect(upgraded.migrations.version()).toBe(3);
+    expect(upgraded.migrations.version()).toBe(4);
     // The rows that existed before are untouched.
     expect(upgraded.conversations.get(conversation.id)?.title).toBe('Before the upgrade');
     expect(upgraded.messages.listByConversation(conversation.id)).toHaveLength(1);
@@ -79,7 +79,7 @@ describe('schema 3 — media', () => {
   it('refuses a database written by a newer build rather than guessing', () => {
     const path = t.filePath;
     t.db.sql.run(
-      "INSERT INTO schema_migrations (version, name, applied_at) VALUES (4, 'future', '2030-01-01T00:00:00.000Z')",
+      "INSERT INTO schema_migrations (version, name, applied_at) VALUES (5, 'future', '2030-01-01T00:00:00.000Z')",
     );
     t.db.close();
     expect(() => openDatabase(path)).toThrowError(DbError);
@@ -214,8 +214,8 @@ describe('schema 3 — generation jobs', () => {
 
 describe('schema 3 — migration set integrity', () => {
   it('keeps the set strictly increasing and starting at 1', () => {
-    expect(MIGRATIONS.map((migration) => migration.version)).toEqual([1, 2, 3]);
-    expect(new Set(MIGRATIONS.map((migration) => migration.name)).size).toBe(3);
+    expect(MIGRATIONS.map((migration) => migration.version)).toEqual([1, 2, 3, 4]);
+    expect(new Set(MIGRATIONS.map((migration) => migration.name)).size).toBe(4);
   });
 
   it('leaves a copy of a v3 file readable after a shutdown', () => {
@@ -223,7 +223,7 @@ describe('schema 3 — migration set integrity', () => {
     t.db.checkpoint();
     copyFileSync(t.filePath, copy);
     const reopened = openDatabase(copy);
-    expect(reopened.migrations.version()).toBe(3);
+    expect(reopened.migrations.version()).toBe(4);
     reopened.close();
   });
 });
