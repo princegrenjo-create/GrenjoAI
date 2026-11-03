@@ -103,7 +103,7 @@
 | PART-003 | Workspace truth: leftovers, docs, dependencies | 002 | ✅ Tree matches intent; docs stop lying; one dependency gone |
 | PART-004 | Capability-based model registry | 002 | ✅ A model can be an image or video model, and the picker knows |
 | PART-005 | Media store, job engine, IPC, `media://` | 004 | ✅ The backend a generation can actually run on |
-| PART-006 | Image adapters: OpenAI + Gemini | 005 | Two confirmed image providers, mocked-tested |
+| PART-006 | Image adapters: OpenAI + Gemini | 005 | ✅ Two confirmed image providers, mocked-tested |
 | PART-007 | Image service and persistence (schema 003) | 006 | Generated images survive a restart and belong to a conversation |
 | PART-008 | Image Studio UI | 007 | A dedicated, on-brand image workflow |
 | PART-009 | Video adapters and async job lifecycle | 005 | Gemini Omni + BFL, non-blocking, cancellable, resumable |
@@ -317,7 +317,18 @@ with live provider calls reported `UNAVAILABLE` without keys.
 
 ---
 
-## PART-006 — Image adapters: OpenAI + Gemini
+## PART-006 — Image adapters: OpenAI + Gemini — **COMPLETE 2026-11-03**
+
+**State:** complete against fixtures (`ab9c93f`; node **709** tests, 19 of them for the adapters). Evidence:
+`PLAN_EVIDENCE.md` §"PART-006".
+
+**Not claimed:** a live generation — no key exists here. **Not yet reachable:** the edits path (reference
+images and a mask are built and tested in the adapter, but the service does not supply references until
+PART-007).
+
+---
+
+## PART-006 (original brief)
 
 - **G:** Two confirmed image providers behind one contract, following the existing build-request/parse-response
   split so both are testable offline.

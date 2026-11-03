@@ -426,6 +426,39 @@ existing migration; schema 3 is additive and the migration was proven on a live 
 feature. The protocol handler's Electron half (`protocol.handle`) is exercised only in a running app; the
 decisions it depends on are unit-tested, and the handler itself is a packaged-app check for PART-013.
 
+## PART-006 — Image adapters: OpenAI + Gemini (complete)
+
+**State:** PASSED against fixtures. One commit (`ab9c93f`), 19 adapter tests + 5 protocol tests.
+
+| Adapter | Request | Response | Proven by |
+|---|---|---|---|
+| `openaiImages.ts` | `/v1/images/generations`; `/v1/images/edits` when references exist (JSON `images[{image_url}]`, `mask`, ≤16) | `data[].b64_json` only; `output_format` → MIME; `size` → width/height | 9 tests: body shape, endpoint switch, header not URL, missing key refuses before HTTP, parse, empty-success is a failure, 401 vs 429, moderation |
+| `geminiImages.ts` | `POST /v1beta/interactions`, `x-goog-api-key`, `input[]` blocks, `response_format[]` | `steps[] → model_output → content[type=image].data` | 6 tests: Interactions body (not chat), raw base64 not a data URL, undocumented `image_size` dropped, key in header only, thinking images ignored, empty reply fails |
+| `media-adapter.ts` | — | — | 4 tests: status → shared code mapping, nested/flat/non-JSON error bodies |
+
+**What is deliberately absent from the wire, and asserted so:** OpenAI sends no `negative_prompt`, `seed`,
+`aspect_ratio` or `steps`; Gemini sends no negative prompt or output count. Those APIs do not document them,
+the model catalogue does not offer them for these models, and a test asserts the keys are *absent* from the
+body — the omission is gated at the UI, not silently applied at the adapter.
+
+**Error vocabulary, mapped once for both providers:** `401/403 → invalid_key` (never retried),
+`429/5xx → retryable`, `413 → bad_request`, a moderation refusal → `moderation_blocked` (never retried),
+missing key → fails before any HTTP call with a sentence naming where to add one.
+
+**A design change made here rather than carried forward:** adapters are built per provider kind on demand, not
+cached. An adapter captures the base URL, and the app deliberately invalidates a stored key when its URL
+changes — so a cache would keep sending a dead key to a stale endpoint. The registry module added in PART-005
+became unnecessary and was **removed** in this commit rather than left as unused code.
+
+**UNAVAILABLE, not claimed:** a live generation against either provider. No key exists in this workspace, so
+request construction and parsing are proven and the calls are not. The exact command to prove it is in
+PART-013's gate.
+
+**Not yet reachable end to end:** the adapters accept reference images and a mask (the edits path is built and
+tested), but the service does not supply them yet — its parameters are scalars by design. Wiring references
+from a stored media row into `SubmitMediaInput` is PART-007's job, so image *editing* is implemented but not
+yet exposed.
+
 ## Cross-cutting: the environment has two known quirks
 
 | # | Claim | Verdict | Evidence |
