@@ -100,7 +100,7 @@
 |---|---|---|---|
 | PART-001 | Baseline checkpoint and evidence run | — | ✅ A tagged, tested starting point nobody has to guess about |
 | PART-002 | Consolidation: dead code and real defects | 001 | ✅ One chat execution path; nine small defects closed |
-| PART-003 | Workspace truth: leftovers, docs, dependencies | 002 | Tree matches intent; docs stop lying; one dependency gone |
+| PART-003 | Workspace truth: leftovers, docs, dependencies | 002 | ✅ Tree matches intent; docs stop lying; one dependency gone |
 | PART-004 | Capability-based model registry | 002 | A model can be an image or video model, and the picker knows |
 | PART-005 | Media store, job engine, IPC, `media://` | 004 | The backend a generation can actually run on |
 | PART-006 | Image adapters: OpenAI + Gemini | 005 | Two confirmed image providers, mocked-tested |
@@ -193,7 +193,16 @@ deserves a single source of truth; that is a build-config refactor and belongs i
 
 ---
 
-## PART-003 — Workspace truth: leftovers, docs, dependencies
+## PART-003 — Workspace truth: leftovers, docs, dependencies — **COMPLETE 2026-11-03**
+
+**State:** complete. Evidence: `PLAN_EVIDENCE.md` §"PART-003". Commits `bd19006` (dependency), `0d642c1`
+(docs truth), `a3fafb7` (backup register), `c952840` (config hygiene). The leftover sweep is **planned and
+deliberately not executed** — no batch approval exists, so nothing was removed:
+`.work/…/out/leftover-plan-2026-11-03.md`.
+
+---
+
+## PART-003 (original brief)
 
 - **G:** Make the repository say what it is: remove only what is proven unreferenced, under a gate, and correct
   the documentation that contradicts the code.

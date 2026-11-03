@@ -324,6 +324,29 @@ No database schema, migration, user data, credential or provider-architecture fi
 `schema_migrations` stays at version 2, `supabase/` is untouched, and `git diff 0438336..HEAD`
 reports no file under `src/main/db/` or `supabase/`.
 
+## PART-003 — Workspace truth: leftovers, docs, dependencies (complete)
+
+**State:** PASSED, with the leftover sweep **planned and not executed** (no approval was given for a
+deletion, and none was attempted). Four commits.
+
+| Commit | Change | Verified by |
+|---|---|---|
+| `bd19006` | **D-10 / audit §3.6** — `highlight.js` removed from direct dependencies | `npm ls highlight.js` now shows only the transitive `lowlight` copy; direct count 26 → **25**; typecheck 0; markdown suite **7/7**; build 0; **renderer JS byte-identical at 718,120 B**, which proves it was never in the bundle |
+| `0d642c1` | **H-01, H-02, H-04** — product name, test counts, bundle table, installer table, `.env.example` | greps below |
+| `a3fafb7` | **H-03** — `backups/BACKUPS.md` registers both installers and the regenerable output | hashes measured, not copied: `Grenjo…exe` 125,299,894 B `55818C47…632349`; `Personal AI Desk…exe` 124,229,063 B `7223DEC3…81DA38` |
+| `c952840` | config hygiene deferred from PART-002: `test:coverage` (could not run) and the dead `scripts/**/*.mjs` include | typecheck 0, build 0, both suites green, gate 0 blocking |
+
+| Claim | Evidence |
+|---|---|
+| The old product name appears only where it is *the subject* | `grep -n "Personal AI Desk"` across `README.md`, `docs/`, `electron-builder.yml`, `.env.example` returns only the rename note (`README.md:10-12`), the legacy-profile migration notes (`FEATURES.md:26`, `THREAT-MODEL.md:102`, `electron-builder.yml:26-28`), the v0.1 installer row (`FEATURES.md:246`) and the archived plan under `docs/history/` |
+| No stale `PERSONAL_AI_DESK_*` variable remains | `grep -rn "PERSONAL_AI_DESK"` → 0 hits outside the audit report's own findings table |
+| The installer claims are true | `docs/FEATURES.md` now says the v0.1.0 Grenjo installer exists and is hashed, that the full lifecycle was only ever run on the pre-rename artifact, and that PART-013 re-certifies |
+| Nothing was deleted in this part | `git diff 44085e5..HEAD --stat` shows no deletion outside `package-lock.json`'s 10 removed lines (the dropped dependency) |
+
+**Leftover disposition:** `.work/…/out/leftover-plan-2026-11-03.md`. Two items are proposed for an S2 batch
+(`release/win-unpacked/` ~426 MB, `.work/test-runtime/`), three are left `unsure`/cited, and **nothing was
+removed** — the owner has not approved a batch, so the plan stops at the plan.
+
 ## Cross-cutting: the environment has two known quirks
 
 | # | Claim | Verdict | Evidence |
