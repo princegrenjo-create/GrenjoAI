@@ -118,6 +118,24 @@ const AUDIO_MIME_BY_EXTENSION: ReadonlyMap<string, string> = new Map([
   ['m4a', 'audio/mp4'],
 ]);
 
+/**
+ * The extensions this module classifies as `kind`, read from the tables above.
+ *
+ * Callers use this to build a native picker's filter, so the dialog can only
+ * offer file types the attachment service already accepts. It is a selector over
+ * the existing tables rather than a list of its own: adding a format above
+ * updates the dialog and the ingest path together, and neither can drift from
+ * the other.
+ *
+ * Audio has no arm here because no picker offers audio — recordings arrive
+ * through the recorder — but the tables and `classifyFile` still accept them.
+ */
+export function extensionsForKind(kind: 'text' | 'image'): readonly string[] {
+  return kind === 'image'
+    ? [...IMAGE_MIME_BY_EXTENSION.keys()]
+    : [...TEXT_MIME_BY_EXTENSION.keys()];
+}
+
 const KNOWN_IMAGE_MIMES: ReadonlySet<string> = new Set([
   'image/png',
   'image/jpeg',

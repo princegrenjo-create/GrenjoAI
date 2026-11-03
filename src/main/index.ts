@@ -17,7 +17,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { app, dialog, Menu, net, safeStorage, shell } from 'electron';
-import type { BrowserWindow } from 'electron';
+import type { BrowserWindow, OpenDialogOptions } from 'electron';
 import type { AppInfo, AppPaths, AppSettings } from '@shared/types';
 import { createLogger, type Logger } from './logger';
 import { installGlobalHardening } from './security';
@@ -250,11 +250,25 @@ async function bootstrap(): Promise<void> {
     logger: log,
     transcription: transcriptionService,
     dialogs: {
-      pickFiles: async () => {
-        const options = {
+      pickFiles: async (filters) => {
+        /*
+         * The filter list is built by the attachment service from the
+         * extractor's own format tables, so the dialog offers exactly the types
+         * the service accepts. This closure only hands it to Electron: a pick
+         * with no kinds arrives as `undefined` and the dialog is unchanged.
+         */
+        const options: OpenDialogOptions = {
           title: 'Attach files',
           buttonLabel: 'Attach',
-          properties: ['openFile', 'multiSelections'] as Array<'openFile' | 'multiSelections'>,
+          properties: ['openFile', 'multiSelections'],
+          ...(filters === undefined
+            ? {}
+            : {
+                filters: filters.map((filter) => ({
+                  name: filter.name,
+                  extensions: [...filter.extensions],
+                })),
+              }),
         };
         const window = mainWindow;
         const result = window

@@ -27,16 +27,73 @@ import {
   type PendingAttachmentResolver,
   type TranscriptionResult,
 } from '@shared/attachments';
-import type { AttachmentBytesInput, TranscriptionInput, TranscriptionStatus } from '@shared/api';
+import type {
+  AttachmentBytesInput,
+  AttachmentPickKind,
+  AttachmentPickOptions,
+  TranscriptionInput,
+  TranscriptionStatus,
+} from '@shared/api';
 import { AppError, appError, toAppError } from '@shared/errors';
 import type { Logger } from '../logger';
-import { classifyFile, extractText, extractTextFromBytes, mimeTypeForFile, readBoundedFile } from './extract';
+import {
+  classifyFile,
+  extensionsForKind,
+  extractText,
+  extractTextFromBytes,
+  mimeTypeForFile,
+  readBoundedFile,
+} from './extract';
 import { validateImage } from './images';
 import type { AttachmentStore } from './store';
 
+/**
+ * One entry of the native dialog's file-type list.
+ *
+ * Structurally the same shape as Electron's `FileFilter`, declared here so this
+ * module keeps its promise of importing no Electron API and so a test can assert
+ * the exact list without a window.
+ */
+export interface DialogFileFilter {
+  name: string;
+  extensions: string[];
+}
+
 export interface AttachmentPickerDialogs {
-  /** Injected so the service imports no Electron API. */
-  pickFiles(): Promise<{ canceled: boolean; paths: string[] }>;
+  /**
+   * Injected so the service imports no Electron API. `filters` is the dialog's
+   * convenience list; `undefined` means "offer every file", which is what the
+   * picker has always done.
+   */
+  pickFiles(
+    filters?: readonly DialogFileFilter[],
+  ): Promise<{ canceled: boolean; paths: string[] }>;
+}
+
+const PICK_FILTER_LABELS: Record<AttachmentPickKind, string> = {
+  file: 'Documents',
+  image: 'Images',
+};
+
+/**
+ * The OS dialog's filter list for one pick kind.
+ *
+ * The extensions are read from the extractor's own format tables, so the dialog
+ * can only offer a type the attachment service classifies as that kind. This is
+ * a convenience for the person choosing a file, never an allowlist: whatever the
+ * dialog lets through is still classified, size-checked and content-checked by
+ * `ingestPath`.
+ */
+export function pickerDialogFilters(kind: AttachmentPickKind): DialogFileFilter[] {
+  if (kind === 'image') {
+    return [{ name: PICK_FILTER_LABELS.image, extensions: [...extensionsForKind('image')] }];
+  }
+  return [
+    { name: PICK_FILTER_LABELS.file, extensions: [...extensionsForKind('text')] },
+    // Without this, a file the extractor would read but whose extension is not
+    // in the table above could not be chosen at all.
+    { name: 'All files', extensions: ['*'] },
+  ];
 }
 
 /**
@@ -61,7 +118,7 @@ export interface AttachmentServiceDeps {
 
 export interface AttachmentService extends PendingAttachmentResolver {
   /** Opens the picker and ingests the chosen files. */
-  pick(): Promise<AttachmentPickResult>;
+  pick(options?: AttachmentPickOptions): Promise<AttachmentPickResult>;
   /** Ingests bytes the renderer already has (drag-and-drop, paste). */
   ingestBytes(input: AttachmentBytesInput): Promise<AttachmentPickResult>;
   get(id: string): AttachmentMeta | null;
@@ -292,10 +349,14 @@ export function createAttachmentService(deps: AttachmentServiceDeps): Attachment
   }
 
   return {
-    async pick(): Promise<AttachmentPickResult> {
+    async pick(options?: AttachmentPickOptions): Promise<AttachmentPickResult> {
+      // `undefined` kinds keeps the dialog exactly as it was before the argument
+      // existed: no filter, every file selectable.
+      const filters =
+        options?.kinds === undefined ? undefined : pickerDialogFilters(options.kinds);
       let selection: { canceled: boolean; paths: string[] };
       try {
-        selection = await dialogs.pickFiles();
+        selection = await dialogs.pickFiles(filters);
       } catch {
         throw new AppError(
           appError(

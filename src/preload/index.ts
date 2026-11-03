@@ -53,7 +53,7 @@ const api: DesktopApi = {
     list: (conversationId) => call(IPC.messagesList, conversationId),
   },
   attachments: {
-    pick: () => call(IPC.attachmentsPick),
+    pick: (options) => call(IPC.attachmentsPick, options),
     ingestBytes: (input) => call(IPC.attachmentsIngestBytes, input),
     get: (id) => call(IPC.attachmentsGet, id),
     remove: (id) => call(IPC.attachmentsRemove, id),

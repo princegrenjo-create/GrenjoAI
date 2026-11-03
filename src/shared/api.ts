@@ -68,13 +68,40 @@ export interface MessagesApi {
 }
 
 /**
+ * Which kinds of file the native picker offers.
+ *
+ * This is a *dialog* hint, not a policy: it decides which files the OS shows,
+ * and the attachment service still decides what is accepted once the user has
+ * chosen. An omitted value means "no filter", which is what every caller that
+ * does not pass one gets.
+ *
+ * The list is deliberately closed: a kind that is not in it is a validation
+ * error at the IPC boundary, not a string the dialog is free to interpret.
+ * Audio is absent on purpose — recordings arrive through the recorder, not a
+ * file picker — even though the attachment service still accepts audio files.
+ */
+export const ATTACHMENT_PICK_KINDS = ['file', 'image'] as const;
+export type AttachmentPickKind = (typeof ATTACHMENT_PICK_KINDS)[number];
+
+/** Optional narrowing for the native picker. Omitted means "show everything". */
+export interface AttachmentPickOptions {
+  kinds?: AttachmentPickKind;
+}
+
+/**
  * Attachments. The renderer never sees a filesystem path and never reads a file
  * itself: the main process opens the picker, validates, reads and extracts, and
  * hands back opaque ids plus display metadata.
  */
 export interface AttachmentsApi {
-  /** Opens the native picker and ingests the chosen files. */
-  pick(): Promise<AttachmentPickResult>;
+  /**
+   * Opens the native picker and ingests the chosen files.
+   *
+   * `options.kinds` narrows which files the dialog offers. It never widens what
+   * the attachment service accepts: a kind the schema rejects never reaches the
+   * dialog, and a file the service refuses is still refused after the pick.
+   */
+  pick(options?: AttachmentPickOptions): Promise<AttachmentPickResult>;
   /** Ingests bytes the renderer already has (drag-and-drop, paste). */
   ingestBytes(input: AttachmentBytesInput): Promise<AttachmentPickResult>;
   /** Metadata for one pending attachment, or null when it is gone. */

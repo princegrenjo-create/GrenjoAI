@@ -14,7 +14,13 @@ import type { TranscriptionResult } from '@shared/attachments';
 import type { TranscriptionStatus } from '@shared/api';
 import { AppError, appError } from '@shared/errors';
 import { createNullLogger } from '@main/logger';
-import { createAttachmentService, type TranscriptionGateway } from '@main/attachments/service';
+import { classifyFile } from '@main/attachments/extract';
+import {
+  createAttachmentService,
+  pickerDialogFilters,
+  type DialogFileFilter,
+  type TranscriptionGateway,
+} from '@main/attachments/service';
 import { createAttachmentStore } from '@main/attachments/store';
 import { pngBytes } from './fixtures';
 import { scratchDir, type ScratchDir } from '../../helpers/tmp';
@@ -96,18 +102,23 @@ function createHarness(options: { files?: string[]; canceled?: boolean; director
     logger: createNullLogger(),
   });
   const transcription = createFakeTranscription();
+  /** Every filter list the "dialog" was opened with, in call order. */
+  const pickerCalls: Array<readonly DialogFileFilter[] | undefined> = [];
   const service = createAttachmentService({
     dialogs: {
-      pickFiles: async () => ({
-        canceled: options.canceled ?? false,
-        paths: options.files ?? [],
-      }),
+      pickFiles: async (filters) => {
+        pickerCalls.push(filters);
+        return {
+          canceled: options.canceled ?? false,
+          paths: options.files ?? [],
+        };
+      },
     },
     store,
     transcription: transcription.gateway,
     logger: createNullLogger(),
   });
-  return { service, store, transcription };
+  return { service, store, transcription, pickerCalls };
 }
 
 async function expectAppError(promise: Promise<unknown>): Promise<AppError> {
@@ -194,6 +205,71 @@ describe('attachment service: pick', () => {
     expect(result.attachments[0]?.kind).toBe('audio');
     expect(result.attachments[0]?.contentStatus).toBe('metadata-only');
     expect(result.attachments[0]?.sentToProvider).toBe(false);
+  });
+});
+
+describe('attachment service: picker filters', () => {
+  it('opens the dialog with no filter when the caller names no kind', async () => {
+    const h = createHarness();
+    await h.service.pick();
+    await h.service.pick({});
+
+    // `undefined` is the shape the Electron closure checks before it adds a
+    // `filters` key, so this is exactly the pre-existing dialog.
+    expect(h.pickerCalls).toEqual([undefined, undefined]);
+  });
+
+  it('offers only the image types the service accepts when the kind is image', async () => {
+    const h = createHarness();
+    await h.service.pick({ kinds: 'image' });
+
+    expect(h.pickerCalls[0]).toEqual([
+      { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] },
+    ]);
+  });
+
+  it('offers the extractor document types and an all-files escape hatch for the file kind', async () => {
+    const h = createHarness();
+    await h.service.pick({ kinds: 'file' });
+
+    const filters = h.pickerCalls[0] ?? [];
+    expect(filters.map((filter) => filter.name)).toEqual(['Documents', 'All files']);
+
+    const documents = filters[0]?.extensions ?? [];
+    expect(documents).toEqual(
+      expect.arrayContaining(['txt', 'md', 'csv', 'json', 'pdf', 'docx']),
+    );
+    expect(documents).not.toContain('png');
+    expect(documents).not.toContain('exe');
+    // Without it a readable file whose extension is not in the table could not
+    // be chosen at all.
+    expect(filters[1]?.extensions).toEqual(['*']);
+  });
+
+  it('never offers a filter extension the attachment service would not classify as that kind', async () => {
+    const kindForPicker: Record<'file' | 'image', ReturnType<typeof classifyFile>['kind']> = {
+      file: 'text',
+      image: 'image',
+    };
+
+    for (const pickKind of ['file', 'image'] as const) {
+      const filters = pickerDialogFilters(pickKind);
+      expect(filters.length).toBeGreaterThan(0);
+      for (const filter of filters) {
+        expect(filter.extensions.length).toBeGreaterThan(0);
+        for (const extension of filter.extensions) {
+          if (extension === '*') continue;
+          const classification = classifyFile({
+            name: `probe.${extension}`,
+            mimeType: '',
+            sizeBytes: 1,
+          });
+          // This is the drift guard: the dialog may only promise a file type the
+          // service would accept as the kind the user asked for.
+          expect(classification.kind).toBe(kindForPicker[pickKind]);
+        }
+      }
+    }
   });
 });
 

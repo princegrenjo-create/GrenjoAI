@@ -305,3 +305,70 @@ describe('Composer attachments', () => {
     expect(harness.fake.api.attachments.ingestBytes).not.toHaveBeenCalled();
   });
 });
+
+describe('Composer attachment buttons', () => {
+  it('asks the picker for a different kind from each button', async () => {
+    const harness = await renderConversation();
+    await screen.findByText('This conversation is empty');
+
+    harness.fake.mocks.attachmentsPick
+      .mockResolvedValueOnce(
+        pickResult([
+          makeAttachment({ id: 'f1', kind: 'text', name: 'brief.pdf', mimeType: 'application/pdf' }),
+        ]),
+      )
+      .mockResolvedValueOnce(
+        pickResult([
+          makeAttachment({ id: 'i1', kind: 'image', name: 'chart.png', mimeType: 'image/png' }),
+        ]),
+      );
+
+    await harness.user.click(harness.attachFileButton());
+    await screen.findByText('brief.pdf');
+    await harness.user.click(harness.attachImageButton());
+    await screen.findByText('chart.png');
+
+    // The defect being fixed: both buttons used to call `pick()` identically.
+    expect(harness.fake.mocks.attachmentsPick.mock.calls).toEqual([
+      [{ kinds: 'file' }],
+      [{ kinds: 'image' }],
+    ]);
+    expect(harness.fake.mocks.attachmentsPick).toHaveBeenCalledTimes(2);
+  });
+
+  it('still shows the chip the image picker returned', async () => {
+    const harness = await renderConversation();
+    await screen.findByText('This conversation is empty');
+
+    harness.fake.mocks.attachmentsPick.mockResolvedValueOnce(
+      pickResult([
+        makeAttachment({ id: 'i1', kind: 'image', name: 'chart.png', mimeType: 'image/png' }),
+      ]),
+    );
+
+    await harness.user.click(harness.attachImageButton());
+
+    await waitFor(() =>
+      expect(harness.fake.mocks.attachmentsPick).toHaveBeenCalledWith({ kinds: 'image' }),
+    );
+    expect(await screen.findByText('chart.png')).toBeInTheDocument();
+  });
+
+  it('leaves the composer unchanged when the picker is cancelled', async () => {
+    const harness = await renderConversation();
+    await screen.findByText('This conversation is empty');
+
+    harness.fake.mocks.attachmentsPick.mockResolvedValueOnce({
+      attachments: [],
+      rejected: [],
+      cancelled: true,
+    });
+
+    await harness.user.click(harness.attachFileButton());
+
+    await waitFor(() => expect(harness.fake.api.attachments.pick).toHaveBeenCalledTimes(1));
+    expect(screen.queryAllByRole('button', { name: /^Remove / })).toHaveLength(0);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(harness.sendButton()).toBeDisabled();
+  });
+});

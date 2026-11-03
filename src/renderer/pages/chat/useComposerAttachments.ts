@@ -7,6 +7,7 @@
  * appends to the true current list rather than to a stale render's copy.
  */
 import { useCallback, useRef, useState } from 'react';
+import type { AttachmentPickOptions } from '@shared/api';
 import type { AttachmentMeta, AttachmentPickResult } from '@shared/attachments';
 import { toAppError } from '@shared/errors';
 import { getApi } from '@renderer/lib/api';
@@ -20,8 +21,12 @@ export interface ComposerAttachments {
   busy: boolean;
   /** True while files are over the composer, so the drop zone can show itself. */
   dragging: boolean;
-  /** Opens the native picker and ingests what the user chose. */
-  pick(): Promise<void>;
+  /**
+   * Opens the native picker and ingests what the user chose. `options.kinds`
+   * only narrows which files the dialog offers; the main process still decides
+   * what is accepted.
+   */
+  pick(options?: AttachmentPickOptions): Promise<void>;
   /** Reads dropped files in the renderer and hands their bytes to the service. */
   addFiles(files: ReadonlyArray<File>): Promise<void>;
   /** Adds a recording the voice recorder produced. */
@@ -61,10 +66,10 @@ export function useComposerAttachments(): ComposerAttachments {
     [commit, reject],
   );
 
-  const pick = useCallback(async () => {
+  const pick = useCallback(async (options?: AttachmentPickOptions) => {
     setBusy(true);
     try {
-      applyResult(await getApi().attachments.pick());
+      applyResult(await getApi().attachments.pick(options));
     } catch (error) {
       reject([
         { name: 'The file picker', reason: errorSummary(toAppError(error)) },

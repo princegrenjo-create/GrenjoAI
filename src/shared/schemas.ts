@@ -7,6 +7,7 @@
  * repository or network call happens.
  */
 import { z } from 'zod';
+import { ATTACHMENT_PICK_KINDS } from './api';
 import { GEN_PARAM_KEYS, PROVIDER_KINDS } from './types';
 import type { GenerationParams } from './types';
 import { ATTACHMENT_LIMITS } from './attachments';
@@ -168,6 +169,19 @@ export const attachmentIngestSchema = z
     kindHint: z.enum(['image', 'file']).optional(),
   })
   .strict();
+
+/**
+ * The picker's only input: which kinds of file the OS dialog should offer.
+ *
+ * Optional at both levels, so `pick()`, `pick({})` and `pick({ kinds: 'image' })`
+ * are all valid and every existing caller keeps working. The enum is closed:
+ * anything else (`'video'`, `'audio'`) is a validation error before the dialog
+ * opens, so a buggy or hostile renderer cannot steer the filter.
+ */
+export const attachmentPickSchema = z
+  .object({ kinds: z.enum(ATTACHMENT_PICK_KINDS).optional() })
+  .strict()
+  .optional();
 
 export const transcriptionInputSchema = z
   .object({

@@ -237,7 +237,7 @@ export function Composer({
               icon={<PaperclipIcon />}
               disabled={!ready || attachmentBox.busy}
               onClick={() => {
-                void attachmentBox.pick();
+                void attachmentBox.pick({ kinds: 'file' });
               }}
             />
             <IconButton
@@ -245,7 +245,7 @@ export function Composer({
               icon={<ImageIcon />}
               disabled={!ready || attachmentBox.busy}
               onClick={() => {
-                void attachmentBox.pick();
+                void attachmentBox.pick({ kinds: 'image' });
               }}
             />
             <IconButton

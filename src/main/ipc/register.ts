@@ -19,6 +19,7 @@ import { createInvoker } from './handler';
 import {
   agentInputSchema,
   attachmentIngestSchema,
+  attachmentPickSchema,
   chatSendSchema,
   conversationCreateSchema,
   conversationPatchSchema,
@@ -150,7 +151,9 @@ export function registerIpcHandlers(deps: IpcDependencies): void {
 
   /* --------------------------------------------------------- attachments -- */
 
-  handle(IPC.attachmentsPick, null, () => deps.attachments.pick());
+  handle(IPC.attachmentsPick, attachmentPickSchema, (options) =>
+    deps.attachments.pick(options),
+  );
   handle(IPC.attachmentsIngestBytes, attachmentIngestSchema, (input) =>
     deps.attachments.ingestBytes(input),
   );
