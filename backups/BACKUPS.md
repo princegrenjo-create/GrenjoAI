@@ -15,7 +15,8 @@ restored from it and a hash matched. A build that merely exited 0 is *not* verif
 | File | Family | Created | Bytes | SHA-256 | Disposition | Role | Verified | Note |
 |---|---|---|---|---|---|---|---|---|
 | `release/Personal AI Desk-Setup-0.1.0-x64.exe` | windows-installer | 2026-10-29 | 124,229,063 | `7223DEC30286CC3427185E27D2D69A84A78F6145CDCCA41B637FFE88AD81DA38` | **keep** | `previous` | **yes** — install → launch → 9/9 smoke → reinstall with data intact → uninstall with data preserved (`PLAN_EVIDENCE.md` PART-014) | The only installer whose full lifecycle was ever exercised. Pre-rename product name. |
-| `release/Grenjo AI Tool-Setup-0.1.0-x64.exe` | windows-installer | 2026-10-29 | 125,299,894 | `55818C47…632349` | **keep** | `latest` | **no** — built and hashed, never install-tested | Supersedes the row above *only once* an install/launch/uninstall cycle is recorded for it. Until then both stay: the old one is the only evidence-backed artifact. |
+| `release/Grenjo AI Tool-Setup-0.2.0-x64.exe` | windows-installer | 2026-11-03 | 124,981,723 | `AB18B547B37A04A0B3083076C4C272DF4FA8402507D6740C3A78CB92C3B9D421` | **keep** | `latest` | **no** — built from the audited tree after the PART-014 fixes, hashed, never install-tested | The candidate for this release. Supersedes 0.1.0 only once an install/launch/uninstall cycle is recorded; until then 0.1.0 stays as `previous`, and the 2026-10-29 artifact stays as the only evidence-backed one. |
+| `release/Grenjo AI Tool-Setup-0.1.0-x64.exe` | windows-installer | 2026-10-29 | 125,299,894 | `55818C47…632349` | **keep** | `previous` | **no** — built and hashed, never install-tested | Supersedes the row above *only once* an install/launch/uninstall cycle is recorded for it. Until then both stay: the old one is the only evidence-backed artifact. |
 
 ## Regenerable build output (not backups)
 

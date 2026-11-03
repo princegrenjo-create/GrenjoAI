@@ -109,7 +109,12 @@ export class JobEngine {
   private readonly basePollDelayMs: number;
   private readonly maxPollDelayMs: number;
   /** Jobs currently being worked on in this process; per provider, for throttling. */
-  private readonly inFlight = new Map<string, number>();
+  /*
+   * Polls per job, for backoff only. Deliberately not persisted: it restarts on
+   * launch, which at worst makes the first poll after a restart a little early.
+   * ttempts on the row stays what its name says — the retry budget.
+   */
+  private readonly pollCounts = new Map<string, number>();
 
   constructor(options: JobEngineOptions) {
     this.options = options;
@@ -200,26 +205,46 @@ export class JobEngine {
         continue;
       }
 
-      perProvider.set(job.providerId, used + 1);
-      this.inFlight.set(job.providerId, (this.inFlight.get(job.providerId) ?? 0) + 1);
-      try {
-        const outcome = job.remoteId
-          ? await this.safePoll(adapter, job)
-          : await this.safeSubmit(adapter, job);
-
-        if (!outcome) {
-          summary.skipped += 1;
-          continue;
-        }
-        if (job.remoteId) summary.polled += 1;
-        else summary.submitted += 1;
-
-        const settled = await this.apply(job, outcome);
-        if (settled === 'succeeded') summary.succeeded += 1;
-        if (settled === 'failed') summary.failed += 1;
-      } finally {
-        this.inFlight.set(job.providerId, Math.max(0, (this.inFlight.get(job.providerId) ?? 1) - 1));
+      /*
+       * A cancel can land while this provider call is in flight, so the job is
+       * re-read before the result is applied. The row-level guard in the
+       * repository is the authoritative check; this one avoids persisting bytes
+       * for a job that has already been called off.
+       */
+      const current = this.options.jobs.get(job.id);
+      if (!current || (current.status !== 'queued' && current.status !== 'running')) {
+        summary.skipped += 1;
+        continue;
       }
+
+      perProvider.set(job.providerId, used + 1);
+      const outcome = job.remoteId
+        ? await this.safePoll(adapter, job)
+        : await this.safeSubmit(adapter, job);
+
+      if (!outcome) {
+        summary.skipped += 1;
+        continue;
+      }
+      if (job.remoteId) summary.polled += 1;
+      else summary.submitted += 1;
+
+      /*
+       * The window a cancel lands in is *this* one: the provider call has just
+       * returned and the result is about to be applied. Re-reading here is what
+       * stops a cancelled generation from being persisted and marked succeeded —
+       * the repository refuses the status change, and this check stops the bytes
+       * being stored in the first place.
+       */
+      const settledOn = this.options.jobs.get(job.id);
+      if (!settledOn || (settledOn.status !== 'queued' && settledOn.status !== 'running')) {
+        summary.skipped += 1;
+        continue;
+      }
+
+      const settled = await this.apply(settledOn, outcome);
+      if (settled === 'succeeded') summary.succeeded += 1;
+      if (settled === 'failed') summary.failed += 1;
     }
 
     return summary;
@@ -350,13 +375,22 @@ export class JobEngine {
     outcome: MediaJobOutcome,
   ): Promise<GenerationJobStatus | 'pending'> {
     if (outcome.kind === 'pending') {
+      /*
+       * Polling is not retrying.
+       *
+       * `attempts` is the retry budget: a successful poll must not spend it, or a
+       * video that has polled six times dies on the first network blip because
+       * the budget was already gone. Progress backoff is driven by a separate
+       * count that only exists to widen the interval between polls.
+       */
+      const polls = (this.pollCounts.get(job.id) ?? 0) + 1;
+      this.pollCounts.set(job.id, polls);
       const updated = this.options.jobs.update(job.id, {
         status: 'running',
         remoteId: outcome.remoteId,
         pollUrl: outcome.pollUrl,
         progress: outcome.progress,
-        attempts: job.attempts + 1,
-        nextPollAt: this.nextDelay(job.attempts + 1),
+        nextPollAt: this.nextDelay(polls),
         errorCode: null,
         errorMessage: null,
         retryable: false,

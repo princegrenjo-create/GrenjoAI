@@ -54,7 +54,17 @@ export function relativePathFromMediaUrl(rawUrl: string): string | null {
   }
   if (url.protocol !== `${MEDIA_SCHEME}:`) return null;
   if (url.host !== MEDIA_HOST) return null;
-  const path = decodeURIComponent(url.pathname).replace(/^\/+/, '');
+  /*
+   * A malformed escape (a corrupt row, a hand-edited URL, a hostile renderer) is
+   * simply not one of ours, so it answers "no path" rather than rejecting the
+   * protocol handler's promise with a URIError.
+   */
+  let path: string;
+  try {
+    path = decodeURIComponent(url.pathname).replace(/^\/+/, '');
+  } catch {
+    return null;
+  }
   return path.length > 0 ? path : null;
 }
 

@@ -54,3 +54,16 @@ describe('media url', () => {
     expect(contentTypeFor('ab/x.bin')).toBe('application/octet-stream');
   });
 });
+
+describe('media:// parsing refuses what it cannot read', () => {
+  it('returns null for a malformed percent escape instead of throwing', () => {
+    /*
+     * The documented contract is "the relative path, or null". A thrown URIError
+     * would reject the protocol handler's promise — an unhandled rejection in the
+     * main process — where the correct answer is a 404.
+     */
+    expect(() => relativePathFromMediaUrl('media://local/%E0%A4%A')).not.toThrow();
+    expect(relativePathFromMediaUrl('media://local/%E0%A4%A')).toBeNull();
+    expect(relativePathFromMediaUrl('media://local/ab%ZZ')).toBeNull();
+  });
+});

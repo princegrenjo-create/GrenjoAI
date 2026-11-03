@@ -254,6 +254,14 @@ export interface MediaListFilter {
 export interface MediaRepository {
   insert(input: NewMediaInput): GenerationMedia;
   get(id: Id): GenerationMedia | null;
+  /**
+   * The row holding a content-addressed path, or null.
+   *
+   * The store dedupes by content, so a second persist of identical bytes is the
+   * same file: the caller reuses this row rather than failing on the unique
+   * index.
+   */
+  getByRelativePath(relativePath: string): GenerationMedia | null;
   list(filter?: MediaListFilter): GenerationMedia[];
   remove(id: Id): boolean;
   /** Sum of every stored file's size, for the disk budget. */

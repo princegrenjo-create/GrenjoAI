@@ -20,6 +20,12 @@ import { JOB_STATUSES } from '../../../shared/media';
 import { bool, isRow, jsonOrNull, newId, nowIso, nullableNum, nullableStr, num, parseJson, parseJsonObject, pickOneOf, str, stringArray } from '../codec';
 import type { DbRow } from '../codec';
 import { DbError } from '../errors';
+
+/*
+ * A job that has finished does not start again: retrying creates a new job, so
+ * every status in this set is a final answer.
+ */
+const TERMINAL_JOB_STATUSES = new Set<GenerationJobStatus>(['succeeded', 'failed', 'canceled', 'expired']);
 import { boundedInt } from '../codec';
 import { BaseRepository } from './base';
 
@@ -142,6 +148,22 @@ export class SqliteMediaRepository extends BaseRepository implements MediaReposi
     return row ? toGenerationMedia(row) : null;
   }
 
+  /**
+   * The row for a content-addressed path, if one exists.
+   *
+   * `relative_path` is unique and the store dedupes by content, so a second
+   * persist of the same bytes is not a new file — it is the same file, and the
+   * caller should reuse this row instead of failing the job on a UNIQUE
+   * constraint.
+   */
+  getByRelativePath(relativePath: string): GenerationMedia | null {
+    const [row] = this.sql.query<DbRow>(
+      `SELECT ${MEDIA_COLUMNS} FROM media WHERE relative_path = ?`,
+      [relativePath],
+    );
+    return row ? toGenerationMedia(row) : null;
+  }
+
   list(filter: MediaListFilter = {}): GenerationMedia[] {
     const clauses: string[] = [];
     const params: SqlValue[] = [];
@@ -221,6 +243,23 @@ export class SqliteGenerationJobRepository extends BaseRepository implements Gen
   update(id: string, patch: JobPatch): GenerationJob | null {
     const existing = this.get(id);
     if (!existing) return null;
+
+    /*
+     * A finished job never changes state again.
+     *
+     * The engine awaits a provider call; a cancel can land while that call is in
+     * flight. Without this rule the awaited result would write `succeeded` over
+     * the `canceled` row — and persist the media the user cancelled. The check
+     * lives here, at the write, because that is the only place where every
+     * caller shares it.
+     */
+    if (
+      patch.status !== undefined &&
+      patch.status !== existing.status &&
+      TERMINAL_JOB_STATUSES.has(existing.status)
+    ) {
+      return null;
+    }
 
     const assignments: string[] = [];
     const params: SqlValue[] = [];

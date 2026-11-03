@@ -109,6 +109,21 @@ export function createMediaService(options: MediaServiceOptions): MediaService {
     persist: async (job, output) => {
       // Bytes first, row second: a row that points at no file is worse than no row.
       const stored = store.save(output.bytes, output.mime, job.task);
+      /*
+       * The store dedupes by content and media.relative_path is unique, so the
+       * same bytes arriving twice — a crash between saving and recording, or two
+       * identical outputs — is one file, not a constraint violation. Reuse the row
+       * that already points at it instead of failing a generation whose image is
+       * already on disk.
+       */
+      const existing = db.media.getByRelativePath(stored.relativePath);
+      if (existing) {
+        logger.info('Generated media already stored; reusing the existing row', {
+          mediaId: existing.id,
+          jobId: job.id,
+        });
+        return existing.id;
+      }
       const row = db.media.insert(
         mediaInputFor(job, output, stored, {
           conversationId: job.conversationId,
@@ -325,8 +340,13 @@ export function createMediaService(options: MediaServiceOptions): MediaService {
     remove(id) {
       const row = db.media.get(id);
       if (!row) return false;
-      // Row first so a failed file delete cannot leave a row pointing at a
-      // missing file that the UI would keep offering to open.
+      /*
+       * File first, row second — the reverse of what the ordering comment used to
+       * claim. A file with no row is unreachable garbage that the next sweep can
+       * reclaim; a row with no file is an item the UI keeps offering to open and
+       * cannot. If the file delete fails the row is still removed, and the warning
+       * above says so.
+       */
       try {
         store.remove(row.relativePath);
       } catch (error) {

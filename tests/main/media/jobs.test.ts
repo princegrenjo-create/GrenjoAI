@@ -136,7 +136,12 @@ describe('job engine — submission and polling', () => {
     const after = h.engine.get(job.id);
     expect(after?.status).toBe('running');
     expect(after?.remoteId).toBe('remote-1');
-    expect(after?.attempts).toBe(1);
+    /*
+     * A successful submit spends no retry budget. `attempts` counts failures, so a
+     * long job cannot arrive at its provider with the budget already gone — see the
+     * "polling is not retrying" tests below.
+     */
+    expect(after?.attempts).toBe(0);
   });
 
   it('polls only after the backoff delay, and succeeds exactly once', async () => {
@@ -394,5 +399,131 @@ describe('job engine — honesty about time and failure', () => {
     expect(h.events.length).toBeGreaterThanOrEqual(3);
     expect(h.events.map((job) => job.status)).toContain('running');
     expect(h.events.map((job) => job.status)).toContain('succeeded');
+  });
+});
+
+/*
+ * Regressions for the three defects the independent audit reproduced. Each of
+ * these failed against the code as it was first written, and the assertion says
+ * why the old behaviour was wrong rather than merely that it changed.
+ */
+describe('job engine — cancel wins over a result already in flight', () => {
+  it('does not store media for a job cancelled while its poll was open', async () => {
+    // A holder: the assignment happens inside the adapter's closure, which the
+    // compiler cannot see from here.
+    const gate: { release?: () => void } = {};
+    const h = harness({
+      submit: () => ({ kind: 'pending', remoteId: 'remote-1', pollUrl: null, progress: 10 }),
+      poll: [{ kind: 'done', outputs: [PNG], providerJobId: 'provider-1' }],
+    });
+    // Make the adapter's poll hang until the test says so, which is the window a
+    // cancel lands in.
+    const realPoll = h.adapter.poll.bind(h.adapter);
+    h.adapter.poll = async (input) => {
+      await new Promise<void>((resolve) => {
+        gate.release = resolve;
+      });
+      return realPoll(input);
+    };
+
+    const job = enqueue(h);
+    await h.engine.tick();
+    h.advance(60_000);
+
+    const ticking = h.engine.tick();
+    // The poll is now open. The user cancels.
+    await h.engine.cancel(job.id);
+    expect(h.engine.get(job.id)?.status).toBe('canceled');
+
+    gate.release?.();
+    await ticking;
+
+    // The awaited result must not overwrite the cancel, and must not be stored.
+    expect(h.engine.get(job.id)?.status).toBe('canceled');
+    expect(h.persisted).toHaveLength(0);
+    expect(h.db.media.list()).toHaveLength(0);
+  });
+});
+
+describe('job engine — polling is not retrying', () => {
+  it('keeps polling past maxAttempts and survives a transient failure afterwards', async () => {
+    // Six successful polls is normal for a video; the seventh call throws.
+    const pending = (): MediaJobOutcome => ({
+      kind: 'pending',
+      remoteId: 'remote-1',
+      pollUrl: null,
+      progress: null,
+    });
+    const h = harness({
+      submit: () => pending(),
+      poll: [pending(), pending(), pending(), pending(), pending(), pending()],
+      maxAttempts: 3,
+    });
+    const realPoll = h.adapter.poll.bind(h.adapter);
+    let calls = 0;
+    h.adapter.poll = async (input) => {
+      calls += 1;
+      if (calls === 7) throw new Error('connection reset');
+      return realPoll(input);
+    };
+
+    const job = enqueue(h);
+    await h.engine.tick();
+    // Poll until the adapter has been asked seven times, advancing the clock
+    // between ticks: the backoff widens, so a fixed tick count is not the same
+    // thing as a fixed poll count.
+    for (let i = 0; i < 40 && calls < 7; i += 1) {
+      // 90 s covers the 60 s poll cap without walking the job past its deadline.
+      h.advance(90_000);
+      await h.engine.tick();
+    }
+    // Six polls returned a result, the seventh threw: that is the transient error.
+    const snapshot = h.engine.get(job.id);
+    process.stdout.write(
+      `[dbg] ${JSON.stringify({ calls, pollCalls: h.adapter.pollCalls, status: snapshot?.status, attempts: snapshot?.attempts, retryable: snapshot?.retryable })}\n`,
+    );
+    expect(calls).toBe(7);
+
+    // The transient failure must be retryable, not terminal: the budget is for
+    // failures, and there have been none until now.
+    const after = h.engine.get(job.id);
+    expect(after?.status).toBe('running');
+    expect(after?.retryable).toBe(true);
+    expect(after?.attempts).toBe(1);
+  });
+
+  it('spends the retry budget only on failures', async () => {
+    const h = harness({
+      submit: () => ({ kind: 'pending', remoteId: 'remote-1', pollUrl: null, progress: 10 }),
+      maxAttempts: 2,
+    });
+    const job = enqueue(h);
+    await h.engine.tick();
+    for (let i = 0; i < 4; i += 1) {
+      h.advance(90_000);
+      const outcome = { kind: 'pending' as const, remoteId: 'remote-1', pollUrl: null, progress: 50 };
+      h.adapter.poll = async () => outcome;
+      await h.engine.tick();
+    }
+    expect(h.engine.get(job.id)?.status).toBe('running');
+    expect(h.engine.get(job.id)?.attempts).toBe(0);
+  });
+});
+
+describe('job engine — the same bytes twice', () => {
+  it('reuses the media row instead of failing a job whose file already exists', async () => {
+    const h = harness({ poll: [{ kind: 'done', outputs: [PNG], providerJobId: null }] });
+    const first = enqueue(h);
+    await h.engine.tick();
+    h.advance(60_000);
+    await h.engine.tick();
+    // The persisted path is content-addressed, so this insert is a duplicate.
+    const dup = h.db.media.insert(
+      mediaInputFor(h.engine.get(first.id) as never, PNG, {
+        relativePath: `${'ab'}/${'c'.repeat(64)}.png`,
+        sha256: 'c'.repeat(64),
+      }),
+    );
+    expect(dup.relativePath).toBe(h.persisted[0]?.relativePath);
   });
 });

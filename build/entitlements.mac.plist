@@ -21,7 +21,7 @@
   automation, and network client/server. The app needs none of them, and an
   entitlement is a claim the signed binary makes about itself.
 
-  This is a threat-model change, not a copying exercise: see the A8 assumption in
+  This is a threat-model change, not a copying exercise: see the A11 assumption in
   docs/THREAT-MODEL.md for what it widens and why it is accepted.
 -->
 <plist version="1.0">

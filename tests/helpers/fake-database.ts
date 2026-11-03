@@ -601,6 +601,12 @@ export function createFakeDatabase(options: FakeDatabaseOptions = {}): FakeDatab
       const row = media.get(id);
       return row ? clone(row) : null;
     },
+    getByRelativePath(relativePath) {
+      for (const row of media.values()) {
+        if (row.relativePath === relativePath) return clone(row);
+      }
+      return null;
+    },
     list(filter = {}) {
       const rows = [...media.values()]
         .filter((row) => (filter.kind === undefined ? true : row.kind === filter.kind))

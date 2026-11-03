@@ -33,7 +33,10 @@ const server = createServer(async (request, response) => {
   const relative = requested === '/' ? 'index.html' : requested.replace(/^\/+/, '');
   const target = path.resolve(root, relative);
 
-  if (!target.startsWith(root)) {
+  // Compare against "root + separator" so a sibling directory such as
+  // "renderer-evil" cannot pass a bare prefix test: the test fixture should not
+  // have the escape its target does not.
+  if (target !== root && !target.startsWith(root + path.sep)) {
     response.writeHead(403).end('Forbidden');
     return;
   }
