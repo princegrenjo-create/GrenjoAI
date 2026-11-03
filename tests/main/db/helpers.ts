@@ -24,13 +24,13 @@ function workspaceRoot(): string {
   return process.cwd();
 }
 
-const SINK_ROOT = path.join(
-  workspaceRoot(),
-  '.work',
-  '2026-10-29-personal-ai-desk',
-  'tmp',
-  'db-tests',
-);
+/**
+ * Every test run writes under the same runtime sink, never into a dated
+ * directory owned by a previous run: a fixed date in the path means the next
+ * `npm test` silently appends to an old run's evidence and that directory can
+ * never be cleaned up without breaking the suite.
+ */
+const SINK_ROOT = path.join(workspaceRoot(), '.work', 'test-runtime', 'db-tests');
 
 export class TestDatabase {
   readonly directory: string;
@@ -40,7 +40,7 @@ export class TestDatabase {
   constructor() {
     mkdirSync(SINK_ROOT, { recursive: true });
     this.directory = mkdtempSync(path.join(SINK_ROOT, 'run-'));
-    this.filePath = path.join(this.directory, 'personal-ai-desk.db');
+    this.filePath = path.join(this.directory, 'test.db');
     this.db = openDatabase(this.filePath);
   }
 

@@ -54,7 +54,16 @@ if (!exePath) {
   process.exit(2);
 }
 
-const runId = new Date().toISOString().replace(/[:.]/g, '-');const outPath = argValue('out') ?? path.join(root, '.work', '2026-10-29-personal-ai-desk', 'out', `smoke-${runId}.json`);
+const runId = new Date().toISOString().replace(/[:.]/g, '-');
+/** Local ISO-8601 date, so runs from different days never share one sink. */
+function localDate() {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+const outPath =
+  argValue('out') ??
+  path.join(root, '.work', `${localDate()}-packaged-smoke`, 'out', `smoke-${runId}.json`);
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
 if (fs.existsSync(outPath)) fs.rmSync(outPath, { force: true });
 
