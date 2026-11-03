@@ -151,3 +151,90 @@ Audit report: `.work/2026-10-29-personal-ai-desk/out/audit-2026-10-29.md`.
 | Signed installer | no certificate | purchase a code-signing certificate; set `CSC_LINK`/`CSC_KEY_PASSWORD` and rebuild |
 | Two-device sync conflict in the real world | needs two machines and a project | sign in on two devices, edit the same conversation offline on both, sync |
 | Renderer auto-scroll behaviour | jsdom has no layout | manual check in the running app |
+
+---
+
+# v0.2 evidence log
+
+Everything below is from the **v0.2** plan (`MASTER_PLAN.md`). Verdicts: **PASSED** (command ran here, output
+quoted), **CONFIRMED-READ** (code/config read at the cited line; not executed), **RELAYED** (produced by a
+named audit workstream, evidence path given), **UNAVAILABLE** (precondition missing, steps recorded).
+
+Run sink: `.work/2026-11-03-audit-consolidation/` (gitignored). Phase-1 audit:
+`docs/PROJECT-AUDIT-2026-11-03.md`. Workstream evidence: `.work/2026-11-03-audit-consolidation/out/`
+(`core-audit.md`, `ui-audit.md`, `platform-audit.md`, `provider-matrix.md`).
+
+## PART-000 — Brand assets (delivered 2026-11-03)
+
+| # | Claim | Verdict | Evidence |
+|---|---|---|---|
+| 1 | The supplied artwork is the icon master and is byte-identical to the attachment | **PASSED** | `Copy-Item` from the attachment object → `build/icon-source.png`, 685,535 B, sha256 `2C42C30BE6B4656AA88AECBF8304E4C60BDFE7DEABF7E94CEB78A04344CB08DF` (matches the attachment hash) |
+| 2 | The generator runs with no new dependency | **PASSED** | `node scripts/make-icon.mjs` → exit 0, `[icon] source 1024x1024 -> icon.png 740673 B, icon.ico 372526 B (16/24/32/48/64/128/256), icon.icns 1111189 B`; `package.json` unchanged |
+| 3 | The ICO is structurally valid at every size | **PASSED** | probe `.work/…/tmp/verify-icons.mjs`: 7/7 entries PASS — for each, `off+len ≤ file length`, `biSize=40`, `biWidth=w`, `biHeight=2h`, 32 bpp, `bytesInRes = 40 + w·h·4 + maskRow·h`; total 372,526 B |
+| 4 | The ICNS is structurally valid | **PASSED** | same probe: `magic=icns declared=1111189 actual=1111189`, 7 entries `icp4:797 icp5:2479 icp6:8030 ic07:25672 ic08:84126 ic09:249348 ic10:740673`, each a PNG payload, walk ended exactly at file length |
+| 5 | Resampling preserves colour and geometry (first attempt was wrong) | **PASSED** | First render returned a white box: un-premultiply used `255/(a/255)` instead of `255/alphaOut`. Fixed to `(r/weight)·(255/alphaOut)`; spot-checked `master(100,900)=#090D0E` vs `icon32(3,28)=#0A0C0E`, `master(512,400)=#FAFEFD` vs `icon256(128,100)=#C5CCCF` (area-averaged). The bug is recorded because the first output *looked* plausible in a file listing. **Note the shipped master is fully opaque**, so the delivered files do not themselves exercise the alpha path; the independent audit exercised it with a synthetic 0→255 alpha ramp at constant colour and measured **zero drift** across 48 alpha levels |
+| 6 | The decoder rejects a corrupt master instead of shipping a wrong icon | **PASSED** | Added a per-chunk CRC check and write-then-rename. Flipping one byte at offset 5000 of a copy of the master → `chunk IDAT failed its CRC check (corrupt or truncated file)`, exit 1, **no output written**; the master was restored and re-hashed to `2C42C30B…CB08DF` |
+| 7 | The generator is deterministic | **PASSED** | Re-running it leaves all three hashes unchanged: `icon.png` `5B2D1445…B248E9`, `icon.ico` `7443EE3C…3CE7`, `icon.icns` `43D16014…048A` |
+| 8 | Small sizes were inspected, not assumed | **PASSED** | 16/32/48/256 px PNGs written to `.work/…/raw/icon-preview/` and viewed: the mark reads as a glowing circuit "C"; the wordmark is a smudge below 48 px. Reported as a limitation, with the mark-only crop offered as an optional follow-up |
+| 9 | `build/icon.ico` is what the Windows installer will use | **CONFIRMED-READ** | `electron-builder.yml:34` `win.icon: build/icon.ico`; `directories.buildResources: build` |
+| 10 | The packaged installer carries the new icon | **PLANNED** | needs `npm run dist` (PART-013); not run in this phase |
+
+## PART-001 (audit input) — baseline facts
+
+| # | Claim | Verdict | Evidence |
+|---|---|---|---|
+| 1 | Tracked files | **PASSED** | `git ls-files \| Measure-Object` → **326**; `src` 157, `tests` 78, `mobile` 63, `scripts` 5, `supabase` 3, `docs` 2, `build` 2 |
+| 2 | HEAD and branch | **PASSED** | `git rev-parse HEAD` → `76ad3e79bb7b05e3249759d4f26076e5aa2334fc`; branch `master` |
+| 3 | The working tree is not clean | **PASSED** | `git status --porcelain` → 63 ` D mobile/…`; after the brand work and before the documents: **69** entries (3 ` M` + 2 `??` + 63 deletions). After the plan/audit/evidence documents are written the same census reads **73** (6 ` M` + 4 `??` + 63 ` D`). Both numbers are true at different moments; the 63 deletions pre-date this run |
+| 4 | `--size-prose` is referenced 6× and defined 0× | **PASSED** | `grep -rn -- "--size-prose" src` → 6 hits (`global.css:171`, `controls.css:731,832`, `overlays.css:53`, `markdown.css:25`, `shell.css:210`), none a definition |
+| 5 | Discovery deletes non-chat model ids | **CONFIRMED-READ** | `openaiFamily.ts:77-78` `NON_CHAT_MODEL_PATTERN = /(^\|[-_/])(embedding\|…\|dall-e\|image\|images\|sora\|…)([-_/]\|$)/i`, applied to the discovery result |
+| 6 | One authoritative concern per area (no duplicated provider layer in `src/`) | **RELAYED** | `out/core-audit.md` §Area inventory, F-01; thin adapters `openai.ts` 152 L / `openaiCompatible.ts` 56 L / `deepseek.ts` 48 L over `openaiFamily.ts` 385 L |
+| 7 | `mobile/` duplicates 11 files / 2,526 lines of `src/` | **RELAYED** | `out/platform-audit.md` F-14, `git ls-tree -r HEAD` blob-SHA comparison |
+| 8 | Exactly one unused direct dependency | **RELAYED** | `out/platform-audit.md` F-10, §3 dependency verdict table: `highlight.js@11.12.0`, 0 imports across 239 files |
+| 9 | `npm audit --omit=dev` → 0 vulnerabilities | **RELAYED** | `out/platform-audit.md` F-21 |
+| 10 | The app's packaging is clean (no `src/`, `tests/`, `mobile/`, `.env`, `.db`, `.map` in `app.asar`) | **RELAYED** | `out/platform-audit.md` F-19: 6,057 asar entries, 9 under `dist/`, 147 production packages, 0 forbidden paths |
+| 11 | OpenAI image API state (model list, `/images/variations` retired, `gpt-image-1` shut down 2026-10-23, 16 refs, mask/markup, arbitrary `WxH` ÷16, base64-only, `n` 1–10) | **PASSED** | Lead re-fetched `https://developers.openai.com/api/reference/resources/images.md` (HTTP 200) and read the parameter tables; matches `out/provider-matrix.md` §2 |
+| 12 | OpenAI has no public video API | **RELAYED** + **CONFIRMED** by matrix | `out/provider-matrix.md` §5 quotes the shutdown banner and the deprecations table (replacement `---`); not re-fetched by the Lead |
+
+## PART-001 pre-check — the tree is green before anything changes
+
+Run on `D:\MyAI` at HEAD `76ad3e7` + the brand-asset worktree changes, **before** any consolidation.
+
+| # | Command | Verdict | Evidence |
+|---|---|---|---|
+| 1 | `npm run typecheck` | **PASSED** | exit 0 (both projects: `tsconfig.node.json`, `tsconfig.web.json`) |
+| 2 | `npx vitest run --config vitest.node.config.ts` | **PASSED** | exit 0 — **51 files, 601 tests passed** |
+| 3 | `npx vitest run --config vitest.renderer.config.ts` | **PASSED** | exit 0 — **14 files, 157 tests passed** |
+| 4 | `node scripts/quality-gate.mjs` | **PASSED** | exit 0 — `144 files scanned, 3 findings (0 blocking, 3 allowed)`; the three are `service_role` named inside its own refusal guard |
+| 5 | `npm run build` | **PASSED with an env override** | exit 0 — `dist/main/index.cjs` 1,249.79 kB (gzip 254.66), `dist/preload/index.cjs` 6.04 kB, `renderer/assets/index-B_EQ9JqM.css` 67.17 kB, `renderer/assets/index-DcELI0SO.js` 718.31 kB (gzip 218.19). These match the sizes recorded independently in `out/platform-audit.md` F-18, so the shipped tree and the measured tree are the same |
+
+**The build needs one environmental workaround on this host.** Plain `npm run build` failed with
+`[vite:esbuild-transpile] remove C:\Users\Jun\AppData\Local\Temp\esbuild-…: Access is denied` — esbuild cannot
+delete its own temp file under the platform temp directory. Redirecting `TEMP`/`TMP` into the run sink made it
+pass:
+
+```powershell
+$env:TEMP='D:\MyAI\.work\<run>\tmp\build-temp'; $env:TMP=$env:TEMP; npm run build
+```
+
+This is an **environment constraint, not a code defect**: no source, config or dependency was changed to fix
+it, and the failure is recorded rather than hidden. Every later part that runs a build must set these two
+variables, or it will record a failure that has nothing to do with the change under test.
+
+## Cross-cutting: the environment has two known quirks
+
+| # | Claim | Verdict | Evidence |
+|---|---|---|---|
+| 1 | `pwsh` failed under the initial `workspace-write` file policy with `STATUS_DLL_INIT_FAILED` | **PASSED** (observed) | four attempts → `[exit code: 3221225794]`, including a background job; identical after a fresh process |
+| 2 | The same command succeeds under `danger-full-access` | **PASSED** | git/tree/icon commands all returned output once the policy changed; the session is now on `danger-full-access` |
+| 3 | `esbuild` cannot write/remove under `%TEMP%` on this host | **PASSED** | `npm run build` → `Access is denied` on `%TEMP%\esbuild-…`; identical build passes with `TEMP`/`TMP` pointed inside the workspace |
+| 4 | Consequence | noted | shell commands need a non-sandboxed session, and builds need a workspace `TEMP`. Both are recorded as preconditions of every later part rather than surprises |
+
+## Not yet evidenced (belongs to later parts)
+
+| Item | Part | How it will be proven |
+|---|---|---|
+| Any generated image or video from a live provider | PART-006, PART-009 | requires the owner's API keys → `UNAVAILABLE` otherwise |
+| A macOS build | PART-012 | requires a macOS host → `UNAVAILABLE` on this machine |
+| The packaged installer carrying the new icon | PART-013 | `npm run dist` + hash + the icon extracted from the exe |
+| The baseline being re-confirmed on the **tagged** commit | PART-001 | the four commands above, re-run after `v0.1.0-baseline` and the two commits |

@@ -1,355 +1,487 @@
-# MASTER PLAN — Personal AI Desk
+# MASTER PLAN — Grenjo AI Tool v0.2
 
 @PlannablePlan v0.1
 
-> **Tooling note (honest status):** the `plannable` CLI is **not installed** and the package is
-> not published on the configured npm registry (`npm view plannable` → 404). The plan, the
-> evidence log (`PLAN_EVIDENCE.md`) and the part state are therefore maintained **by hand** in
-> the documented `@PlannablePlan v0.1` structure. Loading this file and `plannable run-next`
-> are UNAVAILABLE; every other Plannable rule (one part at a time, evidence before completion,
-> no unrelated edits, stop on stop conditions) is followed.
+> **Supersedes the v0.1 plan.** The previous plan (*"MASTER PLAN — Personal AI Desk"*, PART-001…016) described
+> the now-shipped 0.1.0 chat application. It is preserved verbatim at
+> [`docs/history/MASTER_PLAN-v0.1.md`](docs/history/MASTER_PLAN-v0.1.md) and in git history; its evidence log
+> is `PLAN_EVIDENCE.md`. This file is the active plan from **PART-001** onward. **Nothing in it is executed
+> until the owner approves it.**
+>
+> **Tooling note (honest status):** the `plannable` CLI is **not installed** in this environment
+> (`Get-Command plannable` → nothing; global npm packages: `pm2` only). The plan, the evidence log and the
+> part state are therefore maintained **by hand** in the documented `@PlannablePlan v0.1` structure. Every
+> other Plannable rule still applies: one part at a time, evidence before completion, no unrelated edits, stop
+> on a stop condition, and a derived state that is never hand-edited to look complete.
+
+---
 
 ## CTX
 
-- **Owner goal:** a personal, installable Windows desktop AI application with bring-your-own-key
-  providers, automatic model discovery, manually registered custom models, advanced generation
-  settings, custom agents, local-first history, and optional Supabase sync that never carries
-  API keys.
-- **Workspace:** `D:\MyAI` — verified empty at start (0 items, not a git repository). No Telegram
-  bot or other project is present, so nothing is being repurposed or deleted.
-- **Runtime:** Windows 10.0.26300, Node v24.18.0, npm 11.16.0, git 2.55, D: has ~405 GB free.
-- **Stack decisions (with the evidence that forced them):**
-  - Electron 44.10.0 bundles Node 24.22.1, which exposes `node:sqlite` (SQLite 3.53.4, WAL,
-    foreign keys, prepared statements) — probed and confirmed in
-    `.work/2026-10-29-personal-ai-desk/tmp/probe-node-sqlite.cjs`. **Therefore no native
-    module is needed** and `better-sqlite3` / `electron-rebuild` / MSVC are not required.
-  - TypeScript pinned to 5.9.3 because `typescript@latest` is now 7.x (the native port) and is
-    not proven against this build.
-  - Credentials use Electron `safeStorage` (DPAPI on Windows) through a `CredentialStore`
-    interface, so no native `keytar` and no custom cryptography.
-  - Renderer styling is hand-authored CSS driven by a token file (no Tailwind runtime): fewer
-    build risks, and the design tokens stay reviewable in one place.
-- **Non-negotiable constraints:** no API key in SQLite, exported config, logs, error text, the
-  renderer, or the installer; context isolation + sandbox + restrictive CSP; user data outside
-  the install directory; no fake responses; every completion claim carries command evidence.
-- **Hard external dependency:** model discovery and chat calls against a live provider need the
-  owner's own API key. Those become `UNAVAILABLE`-with-steps, never `PASSED`, if no key exists.
+- **Owner goal:** one clean, consistent application with a single authoritative implementation per feature;
+  image-generation and video-generation support across providers that actually document such APIs; a
+  capability-based model registry (no model is assumed to be a chat model); local-first storage of generated
+  media; the existing chat, web renderer and Windows build preserved.
+- **Workspace:** `D:\MyAI`, branch `master`, HEAD `76ad3e7`, **326 tracked files**. The working tree is **not
+  clean** at the start of this plan: 63 unstaged `mobile/` deletions plus the brand-asset changes from the
+  Phase-1 audit run.
+- **Audit basis:** [`docs/PROJECT-AUDIT-2026-11-03.md`](docs/PROJECT-AUDIT-2026-11-03.md). Finding IDs `B-xx`
+  (blocker), `D-xx` (defect) and `H-xx` (hygiene) below refer to that document. A part that also cites `UI-xx`
+  or `F-xx` is referring to the detailed workstream notes kept in the run sink
+  (`.work/2026-11-03-audit-consolidation/out/ui-audit.md`, `…/platform-audit.md`), which are gitignored; the
+  report's own tables carry the same substance for every `B`/`D`/`H` item.
+- **Runtime:** Windows 10.0.26300 x64, Node v24.18.0, npm 11.16.0, git 2.55.0, Electron 44.10.0 (Node
+  24.22.1, Chromium 152), `node:sqlite` 3.53.4 (no native module, no rebuild toolchain), TypeScript 5.9.3.
+- **Non-negotiable constraints (the owner's brief):** no destructive cleanup without verification; no user
+  data, keys or migration history deleted; the existing chat / web renderer / Windows build never broken; no
+  second codebase for macOS; no hardcoded API keys; no invented endpoints or model capabilities; unsupported
+  features clearly marked; no dependency added without a reason; working implementations not replaced for
+  architectural neatness.
+- **Provider facts that gate the scope** (official docs, 2026-11-03; OpenAI re-checked independently by the
+  Lead):
+  - **OpenAI Images** live: `/v1/images/generations`, `/v1/images/edits`; base64 output only; `n` 1–10;
+    arbitrary `WxH` ÷16; up to 16 reference images; `mask`/`markup`; ship `gpt-image-2.5-sunburst`,
+    `gpt-image-2.5-flare`, `gpt-image-2`.
+  - **OpenAI video: does not exist** (Videos API + Sora 2 shut down 2026-09-24). Never offered.
+  - **Imagen** shut down in the Gemini API; **Veo 3.1 Preview** shut down 2026-10-22.
+  - **Gemini images:** `POST /v1beta/interactions` (`x-goog-api-key`), `gemini-*image*` / `nano-banana-*`.
+  - **Gemini video:** `gemini-omni-1.1-flash` via Interactions (`background=true` for long jobs).
+  - **Black Forest Labs:** `api.bfl.ai`, header `x-key`, `POST /v1/<model>` → `polling_url` →
+    `Ready|Error|Failed`; output is a **signed URL valid 10 minutes**; `/v1/flux-3-video` with `mode: t2v`.
+  - Three of five surfaces hand back **expiring URLs** ⇒ bytes are downloaded and persisted at completion,
+    never only a URL.
+  - Model ids live in a **config table with a `shutdownDate`**, never inline in adapter logic.
+- **Hard external dependencies (become `UNAVAILABLE`, never `PASSED`):** live provider calls need the owner's
+  keys; a macOS build needs a macOS host; code signing needs a certificate.
 - **Safeguard basis:**
-  - `basis[baseline.secrets]` — the app stores provider credentials; keys must never reach SQLite,
-    renderer, export or logs.
-  - `basis[input.url]` — the user supplies custom base URLs and a Supabase URL; scheme + behaviour
-    must be validated as untrusted input.
-  - `basis[input.boundary]` — the renderer is an untrusted boundary crossing into privileged IPC.
-  - `basis[data.recovery]` — chats/settings are the only copy of the owner's work; migrations,
-    backups and upgrade behaviour must not be able to lose them.
-  - `basis[access.owner]` — single local user, plus a cloud account whose rows are owner-scoped by
-    RLS. No multi-tenant model.
-  - `basis[quality.change]` — every part must be re-verifiable by the next reader.
-  - `basis[quality.ui]` — the deliverable is a desktop UI; its states and contrast are part of
-    "working".
+  - `basis[baseline.secrets]` — the app stores provider credentials; keys must never reach SQLite, the
+    renderer, an export, a log, or a generated-media record. A signed provider URL is credential-shaped and is
+    never persisted as the only copy.
+  - `basis[baseline.dependencies]` — every addition needs a named reason and an exact pin (the tree is 100 %
+    exact-pinned today).
+  - `basis[access.owner]` — single local user; Supabase rows are owner-scoped by RLS. No multi-tenant model.
+  - `basis[data.recovery]` — chats/settings are the only copy of the owner's work. Migrations are additive;
+    the runner refuses a newer schema, so **downgrade is impossible** and must be stated in release notes.
+  - `basis[input.boundary]` — the renderer is an untrusted boundary crossing into privileged IPC; every new
+    channel validates with zod and asserts the sender.
+  - `basis[input.files]` — reference images and generated outputs are user-controlled files: canonicalise,
+    confine to the media root, cap size and count, validate magic bytes.
+  - `basis[input.urls]` — provider base URLs and returned output URLs are untrusted input: HTTPS only (loopback
+    excepted), `redirect: 'error'`, and an output URL is fetched by the main process, never the renderer.
+  - `basis[quality.change]` — every part re-verifiable by the next reader; evidence before completion.
+  - `basis[quality.ui]` — the deliverable is a desktop UI: states, focus, contrast and keyboard reachability
+    are part of "working", not decoration.
+  - `basis[services.resources]` — video jobs are long, concurrent and billable: a per-provider concurrency
+    budget, bounded polling, cancellation, and no blocking of the main interface.
 
-## Current contract surface (frozen — do not edit without telling the Lead)
+---
+
+## Contract surface (frozen — do not edit without telling the Lead)
 
 | File | Owns |
 |---|---|
-| `src/shared/types.ts` | domain types |
-| `src/shared/defaults.ts` | presets, parameter metadata, model hints, default settings |
-| `src/shared/params.ts` | precedence resolution, capability filtering, weirdness policy, history trimming |
-| `src/shared/errors.ts` | error codes, redaction, status mapping |
-| `src/shared/repository-contract.ts` | `Database` / repository / sync-repository interfaces |
-| `src/shared/provider-contract.ts` | `ProviderAdapter`, request specs, parsers |
-| `src/shared/schemas.ts` | zod IPC validators |
-| `src/shared/settings.ts` | default-fill, normalisation, patch merge |
-| `src/shared/url-policy.ts` | endpoint URL + external-link policy |
-| `src/shared/api.ts` | `DesktopApi` preload surface + IPC channel names |
+| `src/shared/types.ts` | domain types, capability keys, media/job types |
+| `src/shared/defaults.ts` | provider presets, parameter metadata, model hints (dated), default settings |
+| `src/shared/params.ts` | precedence resolution, capability filtering, history trimming |
+| `src/shared/schemas.ts` | zod schemas for every IPC payload and stored record |
+| `src/shared/provider-contract.ts` | `ProviderAdapter`, the optional media adapters, request specs, parsers |
+| `src/shared/api.ts` | the typed `DesktopApi` surface + channel constants |
+| `src/shared/repository-contract.ts` | `Database`, repository and sync-repository interfaces |
+| `src/shared/media.ts` *(new, PART-004)* | capability→task routing, media types, normalised params, job states |
+| `src/main/providers/transport.ts` | the only place provider I/O happens |
+| `src/main/db/migrations/index.ts` | the migration registry |
+| `scripts/quality-gate.mjs` | the static rules the build enforces |
 
-## Parts
+---
 
-### PART-001 — Project foundation and shared contract
+## Part table
 
-- **G:** a repository that installs, type-checks and builds the three bundles.
-- **T:** git init; pin dependencies; `tsconfig.base/node/web`; three Vite configs (renderer ESM,
-  main CJS, preload CJS); vitest node + jsdom configs; electron-builder config; shared contracts.
-- **AC:** `npm install` completes; `npm run typecheck` exits 0 with the shared layer only;
-  `npm run build` emits `dist/main/index.cjs`, `dist/preload/index.cjs`, `dist/renderer/index.html`;
-  a probe run inside the Electron runtime proves `node:sqlite` works.
-- **F:** `package.json`, `tsconfig.*`, `vite.*.config.ts`, `vitest.*.config.ts`,
-  `electron-builder.yml`, `.gitignore`, `src/shared/**`.
-- **V:** `npm run typecheck`; `npm run build`; `electron .work/.../probe-node-sqlite.cjs` →
-  `ok: true`, sqlite 3.53.4.
-- **State:** in progress
+| Part | Title | Depends on | Owner-visible outcome |
+|---|---|---|---|
+| PART-001 | Baseline checkpoint and evidence run | — | A tagged, tested starting point nobody has to guess about |
+| PART-002 | Consolidation: dead code and real defects | 001 | One chat execution path; nine small defects closed |
+| PART-003 | Workspace truth: leftovers, docs, dependencies | 002 | Tree matches intent; docs stop lying; one dependency gone |
+| PART-004 | Capability-based model registry | 002 | A model can be an image or video model, and the picker knows |
+| PART-005 | Media store, job engine, IPC, `media://` | 004 | The backend a generation can actually run on |
+| PART-006 | Image adapters: OpenAI + Gemini | 005 | Two confirmed image providers, mocked-tested |
+| PART-007 | Image service and persistence (schema 003) | 006 | Generated images survive a restart and belong to a conversation |
+| PART-008 | Image Studio UI | 007 | A dedicated, on-brand image workflow |
+| PART-009 | Video adapters and async job lifecycle | 005 | Gemini Omni + BFL, non-blocking, cancellable, resumable |
+| PART-010 | Video Studio UI and player | 009 | A video workflow that does not freeze the app |
+| PART-011 | Media in conversations | 008, 010 | Generated media lives in the chat, not beside it |
+| PART-012 | macOS packaging configuration | 002 | A mac target correct on paper, provable on a mac |
+| PART-013 | Verification battery and release gate | all | Evidence, not claims |
+| PART-014 | Independent audit of the final state | 013 | Findings from someone who did not write the code |
 
-### PART-002 — Electron shell, window security and preload bridge
+---
 
-- **G:** an application window that loads the built renderer with every Electron hardening flag on,
-  and a preload bridge that exposes only `DesktopApi`.
-- **T:** `app.enableSandbox()`; `BrowserWindow` with `contextIsolation`, `sandbox`, `nodeIntegration:false`,
-  `webviewTag:false`; CSP via header **and** meta; deny all permission requests; block navigation and
-  new windows; `setWindowOpenHandler` → external HTTPS only through `shell.openExternal`; register
-  `DesktopApi` through one validating IPC registrar; structured redacting logger; single-instance lock;
-  graceful shutdown that closes SQLite.
-- **AC:** `npm run dev` opens the window and the renderer renders without a console error; a probe
-  script asserts `window.require === undefined`, `window.process === undefined`, and that a denied
-  navigation does not change the URL; `npm run build` output starts under `electron dist/main/index.cjs`.
-- **F:** `src/main/index.ts`, `src/main/window.ts`, `src/main/security.ts`, `src/main/logger.ts`,
-  `src/main/ipc/**`, `src/preload/index.ts`, `scripts/dev.mjs`.
-- **V:** dev start; packaged-app smoke script; `git grep` for the hardening flags.
-- **State:** pending
+## PART-001 — Baseline checkpoint and evidence run
 
-### PART-003 — Local database: schema, migrations, repositories
+- **G:** Establish a tagged, verified starting point, so every later change is a diff against something known
+  to be green and "unused"/"dead" claims have a baseline.
+- **T:**
+  1. Record `git status --porcelain`, `git rev-parse HEAD` and the exact dirty-path list into the run sink.
+  2. Run and capture verbatim output **with exit codes**: `npm run typecheck`, `npm test`, `npm run audit:gate`,
+     `npm run build` (record the emitted bundle sizes).
+  3. Create `git tag -a v0.1.0-baseline 76ad3e7` before any working-tree change is committed.
+  4. Take the owner's `mobile/` decision (audit §10 Q1) and commit **exactly** that decision as its own commit.
+  5. Commit the brand-asset change (`build/icon*`, `scripts/make-icon.mjs`, `README.md`) as its own commit.
+  6. Append every command, exit code and resulting SHA to `PLAN_EVIDENCE.md`.
+- **AC:** `v0.1.0-baseline` exists and points at `76ad3e7`; each command has a recorded exit code and none is
+  reported passing without one; a **failing suite is recorded as failing and blocks PART-002** (the failure
+  case is a red baseline that is reported, not papered over); after the two commits `git status --porcelain`
+  shows only ignored paths or nothing; `mobile/` is never again both tracked and absent.
+- **V:** `git tag -n | Select-String v0.1.0-baseline`; `git status --porcelain`; the four commands above.
+- **Stop condition:** a red baseline on an untouched tree stops the plan and is reported.
 
-- **G:** SQLite storage for conversations, messages, agents, providers, custom/discovered models,
-  settings and sync metadata, reachable only through `Database` from the shared contract.
-- **T:** `node:sqlite` connection with WAL + `foreign_keys=ON` + `busy_timeout`; versioned migration
-  runner inside a transaction with a `schema_migrations` table; tables with `version`, `dirty`,
-  `deleted_at`, `updated_at` for sync; monotonic per-conversation `seq`; FTS-free `LIKE` search;
-  repositories implementing every interface method synchronously.
-- **AC:** fresh file creates the schema and records version 1; migration re-run is a no-op; message
-  `seq` is monotonic under interleaved appends in one transaction; re-opening the file preserves all
-  rows; conversation search matches title and message body; soft delete hides from `list` while the
-  tombstone remains for sync; every repository has a test.
-- **F:** `src/main/db/**`, `tests/main/db/**`.
-- **V:** `npx vitest run --config vitest.node.config.ts tests/main/db`.
-- **State:** pending
+---
 
-### PART-004 — Provider adapters
+## PART-002 — Consolidation: dead code and real defects
 
-- **G:** five adapters behind `ProviderAdapter` that build correct requests, parse streamed and
-  buffered bodies, enumerate models and map failures.
-- **T:** shared `fetch` executor (timeout, `redirect:'error'`, abort, bounded retry, no header
-  logging); SSE framer; DeepSeek + OpenAI (Chat Completions), Gemini (`generateContent` /
-  `streamGenerateContent?alt=sse`), Anthropic (Messages, `x-api-key` + `anthropic-version`, system
-  as a top-level field), generic OpenAI-compatible; per-adapter parameter mapping
-  (`max_tokens` vs `max_output_tokens` vs `max_tokens`; `top_p` vs `topP`; `stop` vs
-  `stop_sequences`; `content.parts[].text` response shape) and capability inference.
-- **AC:** each adapter's `buildChatRequest` produces the documented URL, headers and body for a
-  fixture request, asserted field by field; a mocked 401/429/500/404 maps to the right code; SSE
-  parsing yields the exact text deltas for a captured multi-chunk body split at awkward offsets;
-  `abort` mid-stream surfaces `cancelled` and closes the reader; discovery parses each provider's
-  model list shape; no adapter places a key in a URL.
-- **F:** `src/main/providers/**`, `tests/main/providers/**`.
-- **V:** `npx vitest run --config vitest.node.config.ts tests/main/providers`.
-- **State:** pending
+- **G:** One authoritative implementation per concern, and the audit's proven defects closed, without touching
+  anything that already works.
+- **T:**
+  1. Prove `src/main/providers/executor.ts` is unreferenced, then — **after the owner confirms this single
+     tracked-file deletion** — delete it, its barrel export (`src/main/providers/index.ts`) and its test, or
+     make it a thin wrapper over the shared transport if a consumer appears. **Never delete the transport.**
+     Revert is one command: `git checkout v0.1.0-baseline -- src/main/providers/executor.ts src/main/providers/index.ts tests/main/providers/executor.test.ts`.
+  2. `tokens.css`: add `--size-prose: 65ch;` (D-01).
+  3. `security.ts`: add `"media-src 'self' blob:"` to `devCsp` (D-02).
+  4. Extract `components/ui/ConfirmDialog.tsx` on the existing `Dialog`; migrate the four call sites; keep
+     `initialFocus="cancel"` and each site's existing copy (editing the copy is a separate change) (D-03).
+  5. `package.json`: make `dist` depend on `audit:gate`, `typecheck`, `test` (D-04); fix or remove
+     `test:coverage`; drop the dead `scripts/**/*.mjs` include from `tsconfig.node.json` (D-06).
+  6. `quality-gate.mjs`: scan `scripts/` and `tests/` as well as `src/` (D-06).
+  7. `smoke-packaged.mjs` and `tests/main/db/helpers.ts`: stop hardcoding `.work/2026-10-29-personal-ai-desk`;
+     compute the run directory (D-05).
+  8. `Markdown.tsx`: keep remote images blocked, correct the doc comment to match the code (D-07); add
+     `margin-inline: auto` to `.pds-page__body` (H-06); give the two attach buttons real distinct behaviour via
+     `pick({ kinds })` + dialog filters (D-08).
+- **AC:** `grep -rn "executor" src/` shows no import outside the deleted test and `npm run typecheck` exits 0;
+  a test asserts `--size-prose` is defined as `65ch`; a test asserts the dev CSP contains `media-src`;
+  `ConfirmDialog` is imported by all four former sites and the sidebar delete test still passes;
+  `npm run dist` fails fast when a gate rule is broken (assert by breaking one — the failure case);
+  `npm test` exits 0 with **no assertion weakened**.
+- **V:** `npm run typecheck`; `npm test`; `npm run audit:gate`; `npm run build`.
 
-### PART-005 — Credential store
+---
 
-- **G:** OS-backed credential storage with a narrow interface and no plaintext fallback.
-- **T:** `CredentialStore` interface (`get/set/delete/has/list-fingerprints`); Electron
-  `safeStorage` implementation writing ciphertext to `userData/credentials.bin` with `0600`-style
-  ACL intent and atomic rename; "encryption unavailable" is an explicit error state, never a
-  plaintext write; `keyFingerprint = sha256(key)` first 8 hex; a memory implementation for tests.
-- **AC:** round-trip of a key succeeds; the on-disk file contains no plaintext key substring;
-  `isEncryptionAvailable() === false` makes `set()` throw `AppError('storage')`; delete removes the
-  entry; fingerprint is stable and non-reversible.
-- **F:** `src/main/credentials/**`, `tests/main/credentials/**`.
-- **V:** `npx vitest run --config vitest.node.config.ts tests/main/credentials`.
-- **State:** pending
+## PART-003 — Workspace truth: leftovers, docs, dependencies
 
-### PART-006 — Chat service: precedence, streaming, cancellation, persistence
+- **G:** Make the repository say what it is: remove only what is proven unreferenced, under a gate, and correct
+  the documentation that contradicts the code.
+- **T:**
+  1. Remove the direct `highlight.js` dependency; re-run the renderer suite; verify highlighted code blocks
+     still render (the pinned copy is what resolved first today).
+  2. `MASTER_PLAN.md` / `PLAN_EVIDENCE.md`: v0.1 is archived at `docs/history/MASTER_PLAN-v0.1.md` — **keep
+     both files**, they are the record of the previous audit cycle.
+  3. Sweep `Personal AI Desk` → `Grenjo AI Tool` in `docs/FEATURES.md`, `docs/THREAT-MODEL.md`,
+     `electron-builder.yml`, `.env.example`, `README.md`; keep one explicit legacy-migration note (H-01).
+  4. Correct `docs/FEATURES.md`: the mobile row (H-02), the two installer sizes (H-02), the bundle-size table
+     (H-04), the "web or mobile client — not built" claim.
+  5. `release/`: a **backup family, not a sweep target**. Record both installers in `backups/BACKUPS.md` with
+     disposition, bytes and sha256; keep both until a restore drill exists.
+  6. `.work/`: apply the organizer's classification. `2026-10-29-ui-screenshot` and the audits it backs stay;
+     `2026-10-29-personal-ai-desk` stays until D-05 runs once and nothing cites it; `2026-10-30-mobile` is held
+     until the `mobile/` decision lands. **No deletion without a shown plan.**
+  7. `.env.example`: reduce to the variables the code reads, or delete it and state that `.env` is not used.
+- **AC:** `npm ls --depth=0` shows **25** direct dependencies (26 today, one removed) and `npm ls highlight.js`
+  shows only the transitive copy, with the markdown suite green and `.hljs-*` classes still emitted;
+  `grep -rn "Personal AI Desk"` over the named files returns only the deliberate migration note; `.work/` and
+  `release/` are untouched except the `BACKUPS.md` record — **a deletion that was not shown first is a failure
+  case**; no tracked file is removed here except `executor.ts` from PART-002.
+- **V:** `npm test`; `npm ls --depth=0`; the greps above; `git status --porcelain`.
 
-- **G:** a real chat turn — resolve settings by precedence, call the provider, stream deltas to the
-  renderer, persist the assistant message, and fail visibly.
-- **T:** conversation/model/agent resolution; system-prompt precedence; history trimming; offline
-  detection; retry only for retryable codes; abort controller registry; persist
-  `status:'streaming'` then final `complete|error|stopped`; a failed turn never leaves a
-  successful-looking assistant message.
-- **AC:** with a stubbed adapter, deltas arrive in order and the persisted message matches the
-  concatenation; `stop()` ends with `status:'stopped'` and no `error`; a 401 leaves
-  `status:'error'` with `code:'invalid_key'` and no partial text presented as complete; agent
-  system prompt and parameters beat app defaults and lose to a conversation override; a
-  `weirdness` value is dropped (and reported) for a model without support; duplicate `send` for the
-  same conversation while one is in flight is rejected.
-- **F:** `src/main/chat/**`, `tests/main/chat/**`.
-- **V:** `npx vitest run --config vitest.node.config.ts tests/main/chat`.
-- **State:** pending
+---
 
-### PART-007 — Renderer shell, design tokens, navigation
+## PART-004 — Capability-based model registry
 
-- **G:** a dark-first desktop shell with a token system, five sections and no default-styled control.
-- **T:** `tokens.css` (spacing 4/8/12/16/24/32/48/64/96, type scale 12/14/16/20/25/31, radius 6/10/16,
-  three elevations, semantic colour roles, re-derived dark palette); app shell with sidebar
-  navigation (Chat, Agents, Models & Providers, Settings, Cloud Sync); shared primitives (Button,
-  Input, Select, Textarea, Slider, Switch, Dialog, Toast, Tooltip, EmptyState, ErrorState,
-  Skeleton); focus-visible ring; `aria-live` region for status.
-- **AC:** every declared component renders its 8 states in tests; no `window.confirm/alert/prompt`
-  anywhere; keyboard tab reaches every control with a visible ring; the screen uses ≤4 type sizes.
-- **F:** `src/renderer/**` (shell, `styles/**`, `components/ui/**`), `tests/renderer/**`.
-- **V:** `npx vitest run --config vitest.renderer.config.ts`; screenshot at 1440×900 + 390×844.
-- **State:** pending
+- **G:** Stop treating every model as a chat model. A model declares one or more capabilities; a task selects
+  only models that have it; a provider that cannot do the task is visibly unavailable rather than attempted.
+- **T:**
+  1. `src/shared/media.ts` (new): the capability vocabulary — `textGeneration · imageUnderstanding ·
+     imageGeneration · imageEditing · videoUnderstanding · videoGeneration · audioInput · audioOutput ·
+     embeddings` — plus the task→capability map (`chat → textGeneration`, `image → imageGeneration |
+     imageEditing`, `video → videoGeneration`) and one `supports(model, capability)` helper. One source,
+     imported everywhere.
+  2. `ModelCapabilities`: extend **additively**, keeping `chat`, `streaming`, `imageInput`, `toolCalling`
+     readable so stored rows and exported configs still parse. Document that `chat` means text generation.
+  3. `shared/schemas.ts`: widen the `.strict()` capability schema to accept the new keys **and** the legacy
+     ones; test that an old exported config still imports.
+  4. `db/domain-codec.ts`: tolerant read; missing flags default to `false`; `chat` remains text generation.
+  5. `providers/capabilities.ts`: keep provenance honesty — output modality is **never** inferred from a
+     model-id substring; it comes from a curated hint or an explicit user declaration, labelled as such.
+  6. `defaults.ts` `MODEL_HINTS`: dated hints for the confirmed image/video models, with `shutdownDate` where
+     published; the picker filters `shutdownDate > today`.
+  7. Discovery (B-02): stop deleting non-chat ids; store them with a labelled capability and exclude them from
+     the chat selector only.
+  8. `services/models.ts` probe (B-07): branch on capability; a model with no probe path reports "cannot be
+     tested here" instead of a false failure.
+  9. Custom model registration: capability checkboxes write the new keys; the UI shows which task each model
+     serves.
+- **AC:** typecheck passes; `modelsForTask('image')` returns an image-only model and `modelsForTask('chat')`
+  does **not** (the negative case is asserted); a fixture config written with the old four-flag object still
+  parses and behaves as a text model; a model with no declared capability is not offered for an image task and
+  the copy says so; no model-id substring can set `imageGeneration`/`videoGeneration` (assert with a
+  chat-only model whose id contains "image").
+- **V:** `npm run typecheck`; `npm test -- --run tests/main/models tests/renderer/pages/models`.
 
-### PART-008 — Chat UI
+---
 
-- **G:** the daily-use chat screen: history sidebar with search/rename/delete, message list with
-  Markdown and highlighted code, streaming display, composer with send/stop, model + agent pickers.
-- **T:** conversation list with search; rename and delete through the project's dialog (not
-  `confirm()`); virtual-free but disciplined list rendering; `react-markdown` + `remark-gfm` +
-  `rehype-highlight` with raw HTML disabled; copy message/code actions; streaming caret; error card
-  with retry; empty/loading/offline states; auto-scroll that respects user scroll-up.
-- **AC:** an injected stream of deltas renders incrementally and the final text matches; a
-  `{type:'error'}` event renders an error card and never a normal bubble; Enter sends and
-  Shift+Enter newlines per setting; Stop is reachable and calls `chat.stop`; copy writes the exact
-  message text; a `javascript:` link in model output is not rendered as a link; duplicate send is
-  prevented by the disabled state.
-- **F:** `src/renderer/pages/chat/**`, `src/renderer/components/chat/**`, `src/renderer/lib/**`.
-- **V:** renderer vitest suites + screenshot.
-- **State:** pending
+## PART-005 — Media store, job engine, IPC surface, `media://`
 
-### PART-009 — Providers and models UI (incl. "Others / Custom Models")
+- **G:** Give generation somewhere to live: durable bytes, a job that survives a restart, progress that reaches
+  the renderer, and a way to display a 40 MB video without base64-ing it through IPC.
+- **T:**
+  1. `src/main/media/store.ts`: content-addressed writes (`userData/media/<sha256>.<ext>`), atomic
+     write-then-rename (reuse `attachments/store.ts`'s mechanism, **not** its lifetime), sidecar metadata,
+     per-kind size caps, and a `delete` that only ever touches the media root.
+  2. `src/main/db/migrations/003-media.ts`: a `media` table (id, kind, provider, model, prompt, params JSON,
+     width, height, duration_ms, bytes, sha256, mime, relative path, conversation_id, message_id, job_id,
+     created_at) and a `generation_jobs` table (id, capability, provider, model, status, progress, remote_id,
+     poll_url, error code/message, attempts, next_attempt_at, created_at, updated_at, finished_at). Sync header
+     columns only if the owner decides media syncs (Q4) — default: local only.
+  3. `src/main/media/jobs.ts`: the job state machine, a **bounded** poll loop with backoff and jitter, a
+     per-provider concurrency budget, cancellation, and crash recovery (unfinished jobs resume; a job whose
+     provider handle is gone becomes `expired`, never retried forever).
+  4. `src/main/media/service.ts`: capability → eligible providers/models resolution (fixing the
+     provider/adapter mismatch the transcription path has), submit, poll, download-and-persist, cancel.
+  5. `src/shared/api.ts` + `src/preload/index.ts` + `src/main/ipc/register.ts`: a `media` namespace —
+     `list`, `get`, `generate`, `cancel`, `remove`, `reveal`, `export`, `onEvent` — each with a zod schema and
+     the sender assertion.
+  6. A `media://` protocol handler in main restricted to the media root, with `media-src`/`img-src` extended to
+     it. **`connect-src` stays `'none'`.**
+  7. Settings: default image/video provider+model, media folder cap, explicit retention policy.
+- **AC:** migration 003 applies to a v2 database and to a fresh one, and the runner's newer-schema refusal
+  still fires (failure case: a v4 database against a v3 build); a job submitted and then resumed by a new
+  service instance over the same DB completes **exactly once**; cancel marks `canceled` and writes no media
+  row; an over-deadline poll becomes `failed` with a retryable flag and a bounded retry budget; `media://`
+  refuses `../../` and absolute paths; no generated byte crosses IPC as a JSON string.
+- **V:** `npm test -- --run tests/main/media tests/main/db`; `npm run typecheck`.
 
-- **G:** add/edit/test/remove providers with keys; discover models; manage the visible
-  **Others / Custom Models** section end to end.
-- **T:** provider cards with status, fingerprint, base-URL editing, test, remove; key entry as a
-  write-only field that is never echoed back; discovery with per-model capability badges and a
-  refresh; custom model form (display name, exact model id, provider, endpoint override,
-  description, four capabilities, limits, supported parameters, weirdness support); delete with
-  confirmation; disabled controls carry the reason.
-- **AC:** the key field never renders a stored value; a failed test shows the mapped message and
-  keeps the form values; discovery errors are actionable; creating a custom model makes it
-  selectable in the chat model picker; unsupported top-k/weirdness controls are visibly disabled
-  with an explanation; a plain-HTTP non-loopback endpoint is rejected inline.
-- **F:** `src/renderer/pages/providers/**`, `src/renderer/pages/models/**`.
-- **V:** renderer vitest suites + screenshot.
-- **State:** pending
+---
 
-### PART-010 — Agents UI
+## PART-006 — Image adapters: OpenAI + Gemini
 
-- **G:** create, edit, duplicate, delete agents and start a conversation bound to one.
-- **T:** agent list/detail, provider+model picker, system prompt editor, per-agent parameter
-  overrides, duplicate, delete with confirmation, "New chat with this agent".
-- **AC:** a created agent appears in the chat agent picker and its system prompt and parameters are
-  what the request carries (asserted against a stubbed API); duplicate copies every field with a
-  distinct id; delete asks first and names the agent.
-- **F:** `src/renderer/pages/agents/**`.
-- **V:** renderer vitest suites + screenshot.
-- **State:** pending
+- **G:** Two confirmed image providers behind one contract, following the existing build-request/parse-response
+  split so both are testable offline.
+- **T:**
+  1. `shared/provider-contract.ts`: optional `imageGeneration?: ImageGenerationAdapter` — build request, parse
+     response, parse error, declare supported parameters and limits. An absent capability is a UI fact, never
+     a silent no-op (same shape as `TranscriptionAdapter`).
+  2. `main/providers/openaiImages.ts`: `/v1/images/generations` and `/v1/images/edits` (JSON body, `images[]` of
+     `image_url` data URLs). Reuse the provider row's base URL + Bearer key. Support `model`, `prompt`, `n`
+     1–10, `size` (presets + arbitrary `WxH` ÷16 within documented bounds), `quality`, `background`,
+     `output_format`, `output_compression`, `moderation`, reference images (≤16), `mask`, `markup`,
+     `input_fidelity`, `safety_identifier`. **No `negative_prompt`, no `seed`, no `aspect_ratio`** — those
+     controls are absent for this provider with a note saying the API has no such field.
+  3. `main/providers/geminiInteractions.ts`: `POST /v1beta/interactions` with `input` blocks and
+     `response_format: [{type:'image', mime_type, aspect_ratio, image_size}]`. Parse by iterating
+     `steps[] → model_output → content[type==='image'].data` — **not** the SDK-only `output_image` convenience.
+     Reference images as `image` blocks. No `negative_prompt`/`seed`/`n`.
+  4. Model-id table with `shutdownDate`; the adapter refuses an unknown or expired id with a clear message
+     instead of posting it.
+  5. Error mapping: `moderation_blocked` / `image_generation_user_error` are **non-retryable** and surface the
+     documented reason; 429/5xx retry with backoff and honour `Retry-After`.
+- **AC:** offline fixture tests per provider: request body for a text-only and a reference-image call,
+  response parse for one and for three images, error parse for moderation and for a 500; a test proves a
+  negative-prompt control is not offered for either provider (sending an unknown field must be impossible by
+  construction, not by memory); a test proves a shutdown-listed model id is rejected before any HTTP call;
+  one **live** generation per provider is recorded `UNAVAILABLE` without the owner's key, never `PASSED`.
+- **V:** `npm test -- --run tests/main/providers`; `npm run typecheck`.
 
-### PART-011 — Settings and advanced configuration editor
+---
 
-- **G:** readable settings plus a validated advanced editor with export/import.
-- **T:** generation controls bound to the same parameter specs used by the request layer; per-parameter
-  "not supported by this model" state; advanced key/value editor driven by a declared spec list
-  (type, range, default, description, restart flag); reset-to-default per key and wholesale;
-  export/import JSON that structurally cannot contain credentials; a visible statement of which
-  settings need a restart.
-- **AC:** every `PARAM_SPECS` entry renders a control; an out-of-range value is rejected with the
-  range in the message; reset restores the documented default; export JSON contains
-  `"credentials": "excluded"` and no key-shaped string; import of a tampered document reports the
-  skipped keys instead of applying them; a plain-HTTP Supabase URL is refused.
-- **F:** `src/renderer/pages/settings/**`.
-- **V:** renderer vitest suites + `git grep` for key-shaped strings in the export path.
-- **State:** pending
+## PART-007 — Image service and persistence
 
-### PART-012 — Cloud sync UI
+- **G:** A generation produces an image that is still there tomorrow, belongs to a conversation when asked,
+  and can be exported.
+- **T:**
+  1. Wire `media/service.ts` to the image adapters: resolve an eligible provider/model for `imageGeneration` /
+     `imageEditing`, submit, persist bytes + a `media` row, emit progress.
+  2. Conversation association: `generate` accepts an optional `conversationId`; when present the media row is
+     linked and an attachment is attached to the assistant reply — **outside** `chat/service.execute()`, so
+     B-06 is not touched.
+  3. Export/save through a main-process `media.export` using the native save dialog (never a renderer-supplied
+     path); `reveal` in the OS file manager, guarded to the media root.
+- **AC:** a mocked generation writes one file under `userData/media/`, one `media` row, and the stored sha256
+  matches the file; deleting the row deletes exactly one file and a sibling survives; a failed generation
+  writes **no** media row (failure case); export outside the user's chosen location is impossible by
+  construction; a generated image linked to a conversation appears in that conversation after a reload.
+- **V:** `npm test -- --run tests/main/media tests/main/chat`.
 
-- **G:** optional sign-in, sync status, conflict resolution and sign-out that keeps local data.
-- **T:** disabled-until-configured state, Supabase URL + anon key form (key write-only), sign-in /
-  sign-up / sign-out, pending count, last synced, error surface, conflict list with keep-local /
-  keep-remote, and a plain statement that API keys never sync.
-- **AC:** with sync disabled the rest of the app is unaffected; sign-in failure shows the mapped
-  message without a stack trace; a conflict renders both revisions and records the resolution;
-  sign-out leaves the local database intact (asserted by row count before/after).
-- **F:** `src/renderer/pages/sync/**`.
-- **V:** renderer vitest suites + screenshot.
-- **State:** pending
+---
 
-### PART-013 — Cloud sync engine and Supabase schema
+## PART-008 — Image Studio UI
 
-- **G:** local-first sync with a durable outbox, version-based conflict detection and RLS-protected
-  cloud tables.
-- **T:** `supabase/migrations/*.sql` (tables keyed by `user_id`, `version`, `deleted_at`, `updated_at`,
-  RLS enabled with owner-only policies for select/insert/update/delete); a client factory that takes
-  the URL + anon key from the credential store; pull-then-push engine; exponential backoff on
-  temporary failures; `applyRemote` version comparison; conflict records; sign-out keeping local data;
-  a guard test that asserts no payload contains a key-shaped string.
-- **AC:** RLS SQL enables RLS on every table and defines an owner policy for each of the four
-  operations (asserted by parsing the SQL in a test); a duplicate remote record is `ignored`; a
-  remote write with a higher version over a dirty local row produces a conflict and does not
-  overwrite; a 429/503 retries with backoff and eventually records failure; offline leaves rows
-  pending and resumes; no sync payload contains `sk-`/`AIza`/JWT-shaped data.
-- **F:** `src/main/sync/**`, `supabase/**`, `tests/main/sync/**`.
-- **V:** `npx vitest run --config vitest.node.config.ts tests/main/sync`.
-- **State:** pending
+- **G:** A dedicated image workflow that looks like this product, does not clutter the chat, and never offers a
+  control the selected model cannot honour.
+- **T:**
+  1. Route + nav: `image` in `RouteName`, `ROUTE_META`, `ROUTE_ORDER`, `NAV_ICONS` (`ImageIcon` exists),
+     `RouteView`; update `app-shell.test.tsx`'s hardcoded nav list.
+  2. `pages/image/ImagePage.tsx` + `image.css` using `Page`, `Button`, `IconButton`, `Textarea`+`Field`,
+     `Select`, `Skeleton`, `EmptyState`, `ErrorState`, `Badge`, `Card`. Tokens only.
+  3. Prompt + optional negative prompt (only when the model declares it), size/aspect, quality, output count,
+     reference-image upload (reusing the chat chip pattern and `limitRejection`), and an edit mode when the
+     model declares `imageEditing`.
+  4. Progress: the new `Progress` primitive (`role="progressbar"`, `aria-valuenow`) plus a polite status
+     region for indeterminate states; **cancel appears only when the adapter declares it**.
+  5. History: a `MediaGrid` of past generations (provider, model, prompt, dimensions, date), filtered by task.
+  6. Preview: `MediaPreview` on the existing `Dialog` (zoom, save, copy prompt, "use as reference").
+  7. Card actions visible, not hover-only (audit UI-10).
+  8. **Evidence tooling (Q5):** add `@playwright/test` and `@axe-core/playwright` as exact-pinned dev
+     dependencies, a `playwright.config.ts` pointing at the built renderer, one viewport test at the 940×600
+     minimum and one axe scan of the Image page. This is the only part that adds test dependencies; if the
+     owner declines Q5, this item is dropped and the AC's viewport/contrast checks become a recorded manual pass.
+- **AC:** jsdom tests cover loading/empty/error/success; a model without `imageGeneration` is not listed; a
+  model without `imageEditing` hides the edit tab; progress is announced through a live region; cancel calls
+  `media.cancel` with the right job id and is absent for a provider that cannot cancel; no raw colour or
+  radius in `image.css`; the nav has 7 entries asserted by the shell test; **no horizontal scroll at 940×600**,
+  proven by the Playwright viewport test (or a recorded manual pass if Q5 is declined); **the axe scan reports
+  zero serious or critical violations**, with any accepted exception named.
+- **V:** `npm test -- --run tests/renderer`; `npm run typecheck`.
 
-### PART-014 — Packaging and installer
+---
 
-- **G:** a working NSIS Windows installer that launches without the dev tree.
-- **T:** generated `build/icon.ico`; `npm run dist`; install into a temp profile; launch the
-  installed exe; assert the window opens and `userData` is under `%APPDATA%`; reinstall over the top
-  and assert the database file survives; uninstall and assert `%APPDATA%` data survives.
-- **AC:** `release/Personal AI Desk-Setup-0.1.0-x64.exe` exists and is > 50 MB; the installed app
-  launches and shows the shell; the smoke script reports the packaged `userData` path; a second
-  install preserves rows from the first run's database.
-- **F:** `electron-builder.yml`, `build/**`, `scripts/smoke-packaged.mjs`, `release/**`.
-- **V:** `npm run dist`; `npm run smoke:packaged`; row-count comparison.
-- **State:** pending
+## PART-009 — Video adapters and the async job lifecycle
 
-### PART-015 — Documentation, environment template, status
+- **G:** Video generation that behaves like a background job, not a frozen window: submit, poll, resume,
+  cancel, expire, retry within bounds.
+- **T:**
+  1. `shared/provider-contract.ts`: optional `videoGeneration?: VideoGenerationAdapter` — submit, poll, parse
+     status, parse error, declare inputs (`text`, `image`, `referenceImages`) and controls.
+  2. Gemini video: submit to `interactions` with `model: 'gemini-omni-1.1-flash'` and
+     `response_format: {type:'video', aspect_ratio, resolution}`; `background=true` for long jobs; poll
+     `GET /v1beta/interactions/{id}`; read `steps[] → content[type==='video'].data`; request `delivery:'uri'`
+     for >4 MB and download immediately. **No duration field, no negative prompt** — say so in the UI.
+  3. `main/providers/bfl.ts`: `POST https://api.bfl.ai/v1/flux-3-video` with `x-key`, `mode:'t2v'`; poll
+     `polling_url`; `Ready` → `result.sample` (signed URL, 10-minute life) → **download now**;
+     `Error`/`Failed` → terminal; any other status → keep polling. Respect the documented 24-task budget;
+     surface 429/402 as distinct and non-looping.
+  4. Job lifecycle: bounded polling with jitter, per-provider semaphore, deadline, crash recovery, and
+     `expired` for a handle that no longer resolves.
+  5. Image-to-video where declared (`image` input block / reference image); hidden otherwise.
+- **AC:** fixture tests per provider cover submit body, status mapping, "expiring URL is downloaded before the
+  row is written", and a 10-minute-expired URL producing a clear "the provider's link expired; regenerate"
+  error instead of a broken file; a restart mid-job resumes polling and writes exactly one media row; the
+  semaphore never exceeds the documented limit; one live generation per provider is `UNAVAILABLE` without a
+  key.
+- **V:** `npm test -- --run tests/main/media tests/main/providers`.
 
-- **G:** a README that lets the owner build, install, configure providers and set up Supabase.
-- **T:** README (setup, dev, test, build, install, provider setup, Supabase setup, data locations,
-  update/uninstall behaviour, code signing status), `.env.example` with placeholders only,
-  `docs/FEATURES.md` (implemented / limited / planned), `docs/SUPABASE.md` (schema + RLS + policies),
-  `docs/THREAT-MODEL.md`, `docs/PRIVACY.md`.
-- **AC:** every command in the README was executed in this workspace; `.env.example` contains no
-  real value; the limitations section names live-provider testing as unverified without a key.
-- **F:** `README.md`, `.env.example`, `docs/**`.
-- **V:** run each documented command; `git grep` for secret-shaped strings.
-- **State:** pending
+---
 
-### PART-016 — Audit and release gate
+## PART-010 — Video Studio UI and player
 
-- **G:** an independent audit of the final state with a go/no-go.
-- **T:** an auditor who did not write the code reviews the tree, runs the suites, checks the
-  security invariants (CSP, sandbox, no key in SQLite/export/logs, RLS present, redirect refusal),
-  and records findings with severity and evidence.
-- **AC:** the audit report exists with a verdict; every release-blocking finding is either fixed and
-  re-verified or explicitly recorded as an accepted limitation.
-- **F:** `.work/<run>/out/audit-*.md` (sink artifact).
-- **V:** the auditor's command log with exit codes.
-- **State:** pending
+- **G:** A video workflow with honest progress and a player that works from disk under the app's CSP.
+- **T:**
+  1. Route + nav (`video`, new `VideoIcon` in the existing icon family), page frame, loading/empty/error
+     states.
+  2. Prompt, image-to-video reference (only when declared), aspect ratio (9:16 / 16:9), resolution, model.
+  3. Job list with status, elapsed time, cancel where supported, and resume-after-restart.
+  4. Player: `<video controls>` fed by a `media://` URL; **no autoplay** (respect `prefers-reduced-motion`);
+     poster frame; intrinsic dimensions to avoid layout shift.
+  5. Preview/export via the shared `MediaPreview` + native save dialog.
+- **AC:** the page shows the job's real state after navigating away and back (store, not component state); a
+  canceled job stops polling and shows `canceled`; the `<video>` `src` is a `media://` URL and the renderer
+  never receives base64 video; no autoplay attribute exists in the tree.
+- **V:** `npm test -- --run tests/renderer`; `npm run typecheck`.
 
-## Status summary
+---
 
-| Part | Owner | State |
+## PART-011 — Media in conversations
+
+- **G:** Generated media belongs to the conversation that asked for it, without turning the chat into a studio.
+- **T:**
+  1. `MessageAttachment` gains the `video` kind; `AttachmentList` gains a video chip with duration; the message
+     view renders a `MediaCard` for generated assets (**never** through Markdown — D-07/B-06).
+  2. A compact "Generate an image from this message" action that opens the Image page pre-filled; **no**
+     generation controls inside the normal composer.
+  3. Reopening a conversation re-reads media from disk by id; a missing file renders a clear "file was removed"
+     state, not a broken image.
+- **AC:** a generated image appears inline in its conversation and survives a restart; deleting the file out
+  from under the app produces the missing-file state, not a crash (failure case); the composer's control count
+  is unchanged (asserted).
+- **V:** `npm test -- --run tests/renderer`; `npm test -- --run tests/main/chat`.
+
+---
+
+## PART-012 — macOS packaging configuration
+
+- **G:** A mac target correct on paper, provable on a mac, and without duplicating a line of application code.
+- **T:**
+  1. `electron-builder.yml`: add a `mac:` block — `dmg` + `zip`, `category`, `icon: build/icon.icns`,
+     `hardenedRuntime: true`, `gatekeeperAssess: false`, `entitlements` + `entitlementsInherit`,
+     `artifactName`, and `extendInfo.NSMicrophoneUsageDescription`.
+  2. `build/entitlements.mac.plist`: `com.apple.security.cs.allow-jit`, `com.apple.security.device.audio-input`.
+  3. `after-pack.cjs`: `resetAdHocDarwinSignature: true` for `arm64` (D-09).
+  4. `dist:mac` / `pack:mac` scripts; Windows scripts unchanged.
+  5. `smoke-packaged.mjs`: per-platform bundle candidates and a per-platform appData root (audit F-25).
+  6. `docs/THREAT-MODEL.md`: record the entitlement widening as a new assumption, not a copy of the Windows one.
+  7. Build instructions for Windows, macOS and the web renderer.
+- **AC:** `electron-builder --mac --dir` on a mac produces a launchable `.app` whose microphone prompt appears —
+  **impossible on this host and recorded `UNAVAILABLE` with the exact command for the owner**; the Windows
+  build is unchanged (`npm run dist` + `npm run smoke:packaged` still pass); no source file exists solely for
+  macOS.
+- **V:** `npm run dist` (Windows) + the recorded mac command; `npm run smoke:packaged`.
+
+---
+
+## PART-013 — Verification battery and release gate
+
+- **G:** Prove it, then ship it.
+- **T:**
+  1. Full battery with recorded exit codes: `npm run audit:gate`, `npm run typecheck`, `npm test`,
+     `npm run build`, `npm run dist`, `npm run smoke:packaged`.
+  2. Re-certify the installer: hash the produced exe, record it in `docs/FEATURES.md`, and record an
+     install → launch → generate an image → generate a video → uninstall → **data survives reinstall** cycle.
+  3. Migration drill: open a copy of a real v2 database with the new build; confirm chats/settings/keys
+     survive, and state the documented no-downgrade consequence.
+  4. Performance sanity: renderer bundle size before/after; the largest media file tolerated.
+  5. Release gate: go / go-with-conditions / no-go, each item PASS, FAIL or WAIVED-with-owner.
+  6. Updated build instructions for Windows, macOS and the web renderer.
+- **AC:** every command has a recorded exit code and nothing is `PASSED` without one; the user-data survival
+  test records actual before/after row counts; the gate names every `UNAVAILABLE` item and its owner.
+- **V:** the recorded command log itself.
+
+---
+
+## PART-014 — Independent audit of the final state
+
+- **G:** A second pair of eyes on the finished work, by someone who did not write it.
+- **T:**
+  1. A non-author auditor reads the final diff against `v0.1.0-baseline` and applies `senior-work-audit` +
+     `senior-code-review` + `senior-supply-chain-audit` + `senior-release-gate`.
+  2. Findings are reported **as they come back**, including ones the Lead disagrees with.
+  3. Fix-only pass for blocking findings, then re-verify.
+- **AC:** the audit states the audited SHA, the commands run with exit codes, and a proven/claimed split; no
+  blocking finding is open at close or it is explicitly accepted with an owner and a date; "the author checked
+  it" is never offered as the audit.
+- **V:** the audit report + `git rev-parse HEAD`.
+
+---
+
+## Execution rules for this plan
+
+1. **One part at a time.** Do not start a part whose dependency is incomplete.
+2. **Evidence before completion.** `plannable evidence` is unavailable (CLI absent), so each part appends a
+   row to `PLAN_EVIDENCE.md` with the command, its real output and a verdict
+   (`PLANNED` / `IMPLEMENTED` / `PASSED` / `UNAVAILABLE`).
+3. **No unrelated edits.** A part that needs a file outside its scope says so first.
+4. **Stop conditions are honoured:** a red baseline, an ambiguous deletion, a provider claim without a
+   documented source, or a test that only passes after its assertions were weakened.
+5. **Never automated:** deleting tracked files, moving backups, a schema change that forbids downgrade, and
+   anything touching credentials.
+6. **Two hard `UNAVAILABLE`s** (live provider calls, macOS execution) are reported as such at every subsequent
+   gate — never quietly upgraded to `PASSED`.
+
+---
+
+## Open decisions (blocking PART-001 / PART-004 scope)
+
+| # | Decision | Default if unanswered |
 |---|---|---|
-| PART-001 | lead | done |
-| PART-002 | lead | done |
-| PART-003 | db-engineer | done (audit fix applied: cross-device conflict ordering) |
-| PART-004 | provider-engineer | done |
-| PART-005 | lead | done |
-| PART-006 | lead | done |
-| PART-007 | ui-engineer | done |
-| PART-008 | ui-engineer | done |
-| PART-009 | ui-features | done (Lead review: 2 defects, in fix) |
-| PART-010 | ui-features | done |
-| PART-011 | ui-features | done (Lead review: 2 defects, in fix) |
-| PART-012 | ui-features | done (Lead review: 2 defects, in fix) |
-| PART-013 | sync-engineer | done (audit fix applied: request timeout + latch) |
-| PART-014 | lead | done |
-| PART-015 | lead | done |
-| PART-016 | auditor | pass 1 complete; pass 2 pending on the final tree |
-
-## Audit cycle log
-
-### Pass 1 — verdict REGRESSION FOUND (no-go at that moment)
-
-Report: `.work/2026-10-29-personal-ai-desk/out/audit-2026-10-29.md`
-
-| Finding | Severity | Resolution |
-|---|---|---|
-| `applyRemote` ordered by the per-device `version` counter only, so a remote row newer by `updated_at` was dropped and the stale local row pushed over it | BLOCKER | Fixed by db-engineer: `isRemoteNewer` (version OR updated_at), newer+dirty → conflict, newer+clean → applied. Failing-first tests then green (db suite 132). |
-| The packaged installer was built from older source than the audited tree | BLOCKER | Rebuilt after the last source change; the packaged smoke test re-run against the new binary. |
-| A provider `baseUrl` change (UI, imported config, or a synced row) left the stored key in place, so the key followed to the new host | MAJOR | Fixed by the Lead: the key is now **bound** to the base URL it was entered for (`src/main/models/endpoint-policy.ts`); a URL change invalidates and deletes it. A custom model's `baseUrlOverride` is refused unless it is the same origin. 12 endpoint-policy tests + 12 service tests. |
-| Supabase calls had no timeout and the `inFlight` latch only cleared on settle, so a stalled socket wedged sync in `syncing` forever | MAJOR | Fixed by sync-engineer: one `withTimeout` wrapper on all six client paths, latch released in `finally`, phase can never stay `syncing`, bounded retries. 6 new timeout tests. |
-| The IPC trust boundary had no negative-path tests | MAJOR | Fixed by the Lead: the runner was extracted to `src/main/ipc/handler.ts` and covered by 10 tests (untrusted sender, out-of-range value, unknown key, wrong type, missing payload, preserved code, no stack leak, redaction). |
-| Quit during streaming could leave `status:'streaming'` forever | MINOR | Fixed: the next launch settles any `streaming` message as `stopped`. |
-| `will-navigate` allowed any `file://` URL | MINOR | Fixed: the allowed origin is now the exact renderer directory (`pathToFileURL` + trailing separator). |
-| No Electron fuses; the exe is unsigned | MINOR | Fuses flipped in `scripts/after-pack.cjs` (RunAsNode off, NODE_OPTIONS off, inspect off, only-load-from-asar, embedded asar integrity, cookie encryption) and verified: with `ELECTRON_RUN_AS_NODE=1` the shipped binary still starts as an app. Signing remains documented as unavailable. |
-| The repository had no commits, so there was no rollback point | MINOR | Initial commit created after the tree went green. |
-| `importConfig` was not transactional | MINOR | Fixed: the whole document applies inside one `db.transaction`. |
-| Settings page blanked entirely when a supporting load failed | MAJOR (Lead review) | In fix by ui-features: per-section failure handling. |
-| Cloud Sync page showed only an error when the status read failed | MINOR (Lead review) | In fix by ui-features: keep the page frame and the "keys never sync" explanation. |
-
-The auditor's own caveat was honoured: it could not test live provider calls, a live
-Supabase project, install→upgrade→uninstall (it would have touched the host profile),
-or the rendered UI. The Lead did all four (see `PLAN_EVIDENCE.md`).
+| Q1 | `mobile/`: archive it (tag + commit the deletion), keep and share the 11 contract files, or restore it | **archive** — it is unreferenced by every build path |
+| Q2 | Image providers for the first ship | **OpenAI + Gemini** |
+| Q3 | Video providers | **Gemini Omni + BFL**; Veo GA deferred (needs Google Cloud auth, wire format unverified) |
+| Q4 | Should generated media sync to Supabase? | **No, and never automatically.** The already-shipped v0.1 sync engine continues to sync conversations, agents, custom models and settings — that is the "optional cloud sync" half of the owner's phase 7 and needs **no new work**, only regression coverage in PART-013. **Media sync is explicitly deferred**: PART-005 ships the table without sync header columns, and enabling it later is a separate, owner-approved change covering `sync/tables.ts`, the entity union, the RPC switches and the `sync_conflicts` constraint (audit B-08) |
+| Q5 | Add Playwright + axe before the media UI? | **Yes.** It is a work item, not a preference: PART-008 T.1 installs `@playwright/test` and `@axe-core/playwright` (exact-pinned), adds the config and one viewport + one axe check, and PART-013 runs them. If the owner declines, PART-008's viewport and contrast checks downgrade to a recorded manual pass and the gate says so |
