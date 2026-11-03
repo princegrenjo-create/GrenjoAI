@@ -1,5 +1,5 @@
 import { memo, type ReactElement } from 'react';
-import { Badge } from '@renderer/components/ui';
+import { Badge, Button } from '@renderer/components/ui';
 import { Markdown } from '@renderer/components/markdown/Markdown';
 import { formatTime, formatTokenUsage } from '@renderer/lib/format';
 import type { ChatEntry } from '@renderer/lib/store';
@@ -11,6 +11,13 @@ export interface MessageBubbleProps {
   entry: ChatEntry;
   showTokenUsage: boolean;
   onRetry(): void;
+  /**
+   * Hands this message to the Image Studio as a starting prompt.
+   *
+   * The chat does not generate images: it opens the studio pre-filled, because the
+   * controls, the model choice and the progress belong there.
+   */
+  onGenerateImage?(prompt: string): void;
 }
 
 function roleLabel(role: ChatEntry['role']): string {
@@ -24,7 +31,7 @@ function roleLabel(role: ChatEntry['role']): string {
  * and a failed turn is an error card. The streaming caret is CSS-only and
  * appended to the last rendered paragraph, so it never creates an extra block.
  */
-function MessageBubbleComponent({ entry, showTokenUsage, onRetry }: MessageBubbleProps): ReactElement {
+function MessageBubbleComponent({ entry, showTokenUsage, onRetry, onGenerateImage }: MessageBubbleProps): ReactElement {
   const isUser = entry.role === 'user';
   const isError = entry.status === 'error' && entry.error !== null;
   const streaming = entry.status === 'streaming';
@@ -70,9 +77,14 @@ function MessageBubbleComponent({ entry, showTokenUsage, onRetry }: MessageBubbl
         ) : null}
       </div>
 
-      {canCopy ? (
+      {canCopy || (onGenerateImage && entry.content.trim().length > 0 && !isError && !streaming) ? (
         <div className="pds-message__actions">
-          <CopyButton text={entry.content} label="Copy message" />
+          {canCopy ? <CopyButton text={entry.content} label="Copy message" /> : null}
+          {onGenerateImage && entry.content.trim().length > 0 && !isError && !streaming ? (
+            <Button variant="ghost" size="sm" onClick={() => onGenerateImage(entry.content)}>
+              Generate an image from this message
+            </Button>
+          ) : null}
         </div>
       ) : null}
     </article>

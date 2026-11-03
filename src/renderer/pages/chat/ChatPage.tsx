@@ -3,6 +3,7 @@ import { supportsTask } from '@shared/capabilities';
 import { ChatIcon, PanelIcon } from '@renderer/components/icons';
 import { Button, EmptyState, ErrorState, IconButton, Select } from '@renderer/components/ui';
 import { useHeadingFocus } from '@renderer/lib/hooks';
+import { useMediaStore } from '@renderer/lib/media-store';
 import { formatCount, formatConversationStamp } from '@renderer/lib/format';
 import {
   useChatStore,
@@ -11,6 +12,7 @@ import {
   useShellStore,
 } from '@renderer/lib/store';
 import { Composer } from './Composer';
+import { ConversationMedia } from './ConversationMedia';
 import { ConversationSidebar } from './ConversationSidebar';
 import { MessageList } from './MessageList';
 import './chat.css';
@@ -20,6 +22,30 @@ export function ChatPage(): ReactElement {
   const conversationId = route.conversationId;
   const navigate = useShellStore((state) => state.navigate);
   const conversationsVisible = useShellStore((state) => state.conversationsVisible);
+
+  /*
+   * Generated media belongs to a conversation through its row, not through a
+   * synthetic message: a chat turn is a turn, and a generation is not one.
+   */
+  const mediaItems = useMediaStore((state) => state.items);
+  const loadMedia = useMediaStore((state) => state.load);
+  const attachMedia = useMediaStore((state) => state.attach);
+  const setDraftPrompt = useMediaStore((state) => state.setDraftPrompt);
+
+  useEffect(() => {
+    void loadMedia();
+    return attachMedia();
+  }, [loadMedia, attachMedia]);
+
+  const conversationMedia = conversationId
+    ? mediaItems.filter((item) => item.conversationId === conversationId)
+    : [];
+
+  /** The chat never generates: it hands a starting prompt to the studio. */
+  const generateFromMessage = (prompt: string): void => {
+    setDraftPrompt(prompt);
+    navigate({ name: 'image', conversationId: null });
+  };
   const toggleConversations = useShellStore((state) => state.toggleConversations);
 
   const conversations = useConversationsStore((state) => state.items);
@@ -235,6 +261,7 @@ export function ChatPage(): ReactElement {
             onRetrySend={() => {
               void retryLast();
             }}
+            onGenerateImage={generateFromMessage}
           />
         ) : (
           <div className="pds-chat__state">
@@ -259,6 +286,15 @@ export function ChatPage(): ReactElement {
             />
           </div>
         )}
+
+        {conversationId ? (
+          <ConversationMedia
+            items={conversationMedia}
+            onOpen={(item) =>
+              navigate({ name: item.kind === 'video' ? 'video' : 'image', conversationId: null })
+            }
+          />
+        ) : null}
 
         <Composer
           ready={conversation !== null}

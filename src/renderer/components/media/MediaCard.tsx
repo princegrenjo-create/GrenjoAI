@@ -7,7 +7,7 @@
  * are always present, because a mouse-less window and a touch-capable laptop both
  * need them.
  */
-import type { ReactElement, ReactNode } from 'react';
+import { useState, type ReactElement, type ReactNode } from 'react';
 import type { GenerationMedia } from '@shared/media';
 import { mediaUrl } from '@shared/media';
 import { formatBytes } from '@shared/attachments';
@@ -43,6 +43,7 @@ export function MediaCard({
   progress,
 }: MediaCardProps): ReactElement {
   const source = mediaUrl(item.relativePath);
+  const [missing, setMissing] = useState(false);
   const promptExcerpt = item.prompt.length > 120 ? `${item.prompt.slice(0, 120)}…` : item.prompt;
 
   return (
@@ -53,7 +54,11 @@ export function MediaCard({
         onClick={() => onOpen(item)}
         aria-label={`Open ${item.kind} preview: ${promptExcerpt}`}
       >
-        {item.kind === 'image' ? (
+        {missing ? (
+          <span className="pds-media-card__missing">
+            File removed from disk
+          </span>
+        ) : item.kind === 'image' ? (
           <img
             className="pds-media-card__image"
             src={source}
@@ -62,12 +67,19 @@ export function MediaCard({
             height={item.height ?? undefined}
             loading="lazy"
             decoding="async"
+            onError={() => setMissing(true)}
           />
         ) : (
           <span className="pds-media-card__video">
             {/* No autoplay: a moving preview in a grid is noise, and it ignores
                 the reduced-motion preference. The player lives in the preview. */}
-            <video className="pds-media-card__video-el" src={source} preload="metadata" muted />
+            <video
+              className="pds-media-card__video-el"
+              src={source}
+              preload="metadata"
+              muted
+              onError={() => setMissing(true)}
+            />
             <span className="pds-media-card__play" aria-hidden="true">
               ▶
             </span>

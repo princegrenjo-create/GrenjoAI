@@ -16,6 +16,7 @@ export interface MessageListProps {
   showTokenUsage: boolean;
   onRetryLoad(): void;
   onRetrySend(): void;
+  onGenerateImage?(prompt: string): void;
 }
 
 /**
@@ -31,6 +32,7 @@ export function MessageList({
   showTokenUsage,
   onRetryLoad,
   onRetrySend,
+  onGenerateImage,
 }: MessageListProps): ReactElement {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [pinned, setPinned] = useState(true);
@@ -99,6 +101,7 @@ export function MessageList({
               entry={entry}
               showTokenUsage={showTokenUsage}
               onRetry={onRetrySend}
+          {...(onGenerateImage ? { onGenerateImage } : {})}
             />
           ))
         )}

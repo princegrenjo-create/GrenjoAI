@@ -78,6 +78,8 @@ export function ImagePage(): ReactElement {
   const status = useMediaStore((store) => store.status);
   const loadError = useMediaStore((store) => store.error);
   const load = useMediaStore((store) => store.load);
+  const draftPrompt = useMediaStore((store) => store.draftPrompt);
+  const setDraftPrompt = useMediaStore((store) => store.setDraftPrompt);
   const [models, setModels] = useState<ModelDescriptor[]>([]);
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [catalogError, setCatalogError] = useState<string | null>(null);
@@ -114,6 +116,14 @@ export function ImagePage(): ReactElement {
     void load();
     return useMediaStore.getState().attach();
   }, [load, loadCatalog]);
+
+  // A prompt handed over from a conversation: consume it once, then forget it.
+  useEffect(() => {
+    if (draftPrompt !== null) {
+      setPrompt(draftPrompt);
+      setDraftPrompt(null);
+    }
+  }, [draftPrompt, setDraftPrompt]);
 
   const imageModels = useMemo(
     () => models.filter((model) => supportsTask(model.capabilities, 'image')),

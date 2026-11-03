@@ -31,6 +31,14 @@ export interface MediaState {
   forgetItem(id: string): void;
   /** Applies one job event; exported for tests that cannot wire the bridge. */
   applyJob(job: GenerationJob): void;
+  /**
+   * A prompt handed from a conversation to the Image Studio.
+   *
+   * The chat never generates an image itself; it can only hand a starting prompt
+   * to the studio, which is where the controls live.
+   */
+  draftPrompt: string | null;
+  setDraftPrompt(prompt: string | null): void;
   /** Subscribes to job events exactly once per renderer session. */
   attach(): () => void;
 }
@@ -43,6 +51,7 @@ export const useMediaStore = create<MediaState>((set, get) => ({
   error: null,
   items: [],
   jobs: [],
+  draftPrompt: null,
 
   async load(force = false) {
     const current = get().status;
@@ -66,6 +75,10 @@ export const useMediaStore = create<MediaState>((set, get) => ({
     }
   },
 
+  setDraftPrompt(prompt) {
+    set({ draftPrompt: prompt });
+  },
+
   forgetItem(id) {
     set((state) => ({ items: state.items.filter((item) => item.id !== id) }));
   },
@@ -83,7 +96,13 @@ export const useMediaStore = create<MediaState>((set, get) => ({
 
   attach() {
     if (detach) return detach;
-    detach = getApi().media.onEvent((job) => get().applyJob(job));
+    try {
+      detach = getApi().media.onEvent((job) => get().applyJob(job));
+    } catch {
+      // No bridge: the app shows its own fatal screen. A store that threw here
+      // would replace that screen with a stack trace, so it degrades to a no-op.
+      detach = () => undefined;
+    }
     return detach;
   },
 }));
@@ -92,5 +111,5 @@ export const useMediaStore = create<MediaState>((set, get) => ({
 export function resetMediaStoreForTest(): void {
   detach?.();
   detach = null;
-  useMediaStore.setState({ status: 'idle', error: null, items: [], jobs: [] });
+  useMediaStore.setState({ status: 'idle', error: null, items: [], jobs: [], draftPrompt: null });
 }
