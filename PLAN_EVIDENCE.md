@@ -388,6 +388,35 @@ conversation. Fixed in `SettingsPage.tsx` with its own regression test.
 **Not verified:** the rendered look of the badge row and the scroll behaviour of the longer capability editor
 in a real window — jsdom proves the DOM contract, not the pixels. That is the Playwright pass in PART-008.
 
+## PART-005 — Media store, job engine, IPC, `media://` (**in progress**)
+
+**State:** three of five pieces landed and verified. Not yet complete: the IPC surface and the `media://`
+protocol handler. Nothing in this part has touched user data, credentials or an existing migration.
+
+| Commit | Piece | Verified by |
+|---|---|---|
+| `c663408` | **Schema 3** (`media`, `generation_jobs`), both repositories, content-addressed store | migration applied to a fresh file **and** to a live v2 database with rows; traversal/absolute/oversize refused; atomic, idempotent writes; 22 tests |
+| `3ef1d2a` | **Job engine** — bounded polling, backoff with jitter, per-provider throttle, cancel, deadline expiry, restart recovery | 16 engine tests incl. "a rejection is never retried", "persist before success", "one submit for two overlapping ticks", "expired ≠ failed" |
+| `e85958e` | **Media service** — capability-based eligibility, storage, export/reveal, scheduler | 12 tests incl. "a chat model cannot be handed an image job", "exactly one file and one row", "overlapping ticks submit once", "restart writes one row" |
+
+Gates after each commit: typecheck 0; node **674** tests (was 624 at PART-004); renderer 195; quality gate
+246 files / 0 blocking.
+
+**Decisions recorded rather than improvised:**
+
+- Media rows carry **no sync header** and are absent from `SYNC_TABLES` — asserted by test, because the owner
+  decided generated media stays local.
+- Conversation/message links are `ON DELETE SET NULL`, so deleting a chat never deletes generated files; a
+  hard delete is used in the test because a soft delete legitimately keeps the link.
+- `expired` is a distinct terminal state from `failed`: the provider may still have finished; this app stopped
+  waiting, and the message says so instead of inviting a pointless retry.
+- A job that has never been submitted is always due — reading the row's timestamp first let a clock
+  difference between database and engine strand a queued job.
+
+**Next:** the `media` IPC namespace (`list/get/generate/cancel/jobs/remove/export/reveal/onEvent` with zod
+validation and the sender assertion), the `media://` protocol handler restricted to the media root, and the
+CSP entries that let the renderer show a file without `connect-src` ever being loosened.
+
 ## Cross-cutting: the environment has two known quirks
 
 | # | Claim | Verdict | Evidence |
