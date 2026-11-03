@@ -7,6 +7,7 @@
  * filled with a number the app invented.
  */
 import { useEffect, useState, type ReactElement } from 'react';
+import { makeCapabilities } from '@shared/capabilities';
 import { PARAM_SPECS } from '@shared/defaults';
 import { DEBUG_PARAM_KEYS } from '@shared/params';
 import { asAppError } from '@shared/errors';
@@ -35,12 +36,10 @@ export interface ModelDialogProps {
   onSaved(model: ModelDescriptor): void;
 }
 
-const EMPTY_CAPABILITIES: ModelCapabilities = {
+const EMPTY_CAPABILITIES: ModelCapabilities = makeCapabilities({
   chat: true,
   streaming: true,
-  imageInput: false,
-  toolCalling: false,
-};
+});
 
 function parseOptionalCount(text: string): number | null | 'invalid' {
   const trimmed = text.trim();

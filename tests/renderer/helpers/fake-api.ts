@@ -109,7 +109,7 @@ export function makeModel(overrides: Partial<ModelDescriptor> = {}): ModelDescri
     modelId: 'deepseek-chat',
     displayName: 'DeepSeek Chat',
     source: 'catalog',
-    capabilities: { chat: true, streaming: true, imageInput: false, toolCalling: true },
+    capabilities: { chat: true, streaming: true, imageInput: false, toolCalling: true, imageOutput: false, imageEditing: false, videoInput: false, videoOutput: false, audioInput: false, audioOutput: false, embeddings: false },
     limits: { contextWindow: 128000, maxOutputTokens: 8192 },
     description: 'General-purpose chat model.',
     supportedParams: ['temperature', 'topP', 'maxOutputTokens'],

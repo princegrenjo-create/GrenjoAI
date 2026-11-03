@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { AttachmentMeta, AttachmentPickResult } from '@shared/attachments';
+import { makeCapabilities } from '@shared/capabilities';
 import type { ModelCapabilities } from '@shared/types';
 import { resetStores } from './helpers/state';
 import { makeAttachment, makeModel } from './helpers/fake-api';
@@ -13,12 +14,12 @@ function pickResult(
   return { attachments, rejected, cancelled: false };
 }
 
-const VISION: ModelCapabilities = {
+const VISION: ModelCapabilities = makeCapabilities({
   chat: true,
   streaming: true,
   imageInput: true,
   toolCalling: true,
-};
+});
 
 beforeEach(() => {
   resetStores();

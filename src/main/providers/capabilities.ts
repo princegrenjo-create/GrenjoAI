@@ -14,6 +14,7 @@
  * Adapters never turn a hint into a claim that a parameter or a modality was
  * verified with the provider.
  */
+import { makeCapabilities } from '@shared/capabilities';
 import { MODEL_HINTS, PROVIDER_PRESETS } from '@shared/defaults';
 import type { ModelHint } from '@shared/defaults';
 import type { GenParamKey, ModelCapabilities, ModelLimits, ProviderKind } from '@shared/types';
@@ -76,7 +77,7 @@ export function inferCapabilities(
   const supportedParams = preset.supportedParams.filter((key) => key !== 'weirdness');
 
   return {
-    capabilities: { chat: true, streaming: true, imageInput, toolCalling: false },
+    capabilities: makeCapabilities({ chat: true, streaming: true, imageInput }),
     limits: {},
     supportedParams,
     weirdnessSupported: false,

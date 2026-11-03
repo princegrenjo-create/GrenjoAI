@@ -69,7 +69,7 @@ describe('settings service', () => {
           providerId: 'p-openai',
           modelId: 'my-local-model',
           displayName: 'Local',
-          capabilities: { chat: true, streaming: true, imageInput: false, toolCalling: false },
+          capabilities: { chat: true, streaming: true, imageInput: false, toolCalling: false, imageOutput: false, imageEditing: false, videoInput: false, videoOutput: false, audioInput: false, audioOutput: false, embeddings: false },
         },
       ],
     });

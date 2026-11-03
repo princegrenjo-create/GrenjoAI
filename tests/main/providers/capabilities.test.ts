@@ -23,6 +23,13 @@ describe('inferCapabilities', () => {
       streaming: true,
       imageInput: true,
       toolCalling: true,
+      imageOutput: false,
+      imageEditing: false,
+      videoInput: false,
+      videoOutput: false,
+      audioInput: false,
+      audioOutput: false,
+      embeddings: false,
     });
     expect(profile.limits).toEqual({ contextWindow: 128000, maxOutputTokens: 16384 });
     expect(profile.supportedParams).toEqual([
@@ -54,6 +61,13 @@ describe('inferCapabilities', () => {
       streaming: true,
       imageInput: false,
       toolCalling: false,
+      imageOutput: false,
+      imageEditing: false,
+      videoInput: false,
+      videoOutput: false,
+      audioInput: false,
+      audioOutput: false,
+      embeddings: false,
     });
     expect(profile.limits).toEqual({});
     expect(profile.weirdnessSupported).toBe(false);

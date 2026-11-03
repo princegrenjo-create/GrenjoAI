@@ -22,6 +22,7 @@ import type {
   ProviderConfig,
 } from '@shared/types';
 import type { Database } from '@shared/repository-contract';
+import { toModelCapabilities } from '../db/domain-codec';
 import type { Logger } from '../logger';
 
 export interface SettingsServiceDeps {
@@ -256,14 +257,10 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
               skipped.push('customModels[]');
               continue;
             }
-            const capabilities = isRecord(raw.capabilities)
-              ? {
-                  chat: raw.capabilities.chat !== false,
-                  streaming: raw.capabilities.streaming !== false,
-                  imageInput: raw.capabilities.imageInput === true,
-                  toolCalling: raw.capabilities.toolCalling === true,
-                }
-              : { chat: true, streaming: true, imageInput: false, toolCalling: false };
+            // Tolerant read: an export written before the capability model has
+            // the original four flags and none of the others, and must still
+            // import as a working chat model rather than being skipped.
+            const capabilities = toModelCapabilities(raw.capabilities);
 
             // Only ids this build understands; an unknown key in a hand-edited
             // file must not become a parameter the request layer then tries to map.

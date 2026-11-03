@@ -218,6 +218,13 @@ describe('DeepSeek discovery', () => {
       streaming: true,
       imageInput: false,
       toolCalling: true,
+      imageOutput: false,
+      imageEditing: false,
+      videoInput: false,
+      videoOutput: false,
+      audioInput: false,
+      audioOutput: false,
+      embeddings: false,
     });
     expect(chat?.limits.contextWindow).toBe(128000);
     expect(chat?.weirdnessSupported).toBe(false);

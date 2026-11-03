@@ -13,7 +13,7 @@ afterEach(() => {
   t.dispose();
 });
 
-const CAPABILITIES = { chat: true, streaming: true, imageInput: false, toolCalling: true };
+const CAPABILITIES = { chat: true, streaming: true, imageInput: false, toolCalling: true, imageOutput: false, imageEditing: false, videoInput: false, videoOutput: false, audioInput: false, audioOutput: false, embeddings: false };
 
 function discovered(
   providerId: string,
@@ -308,6 +308,13 @@ describe('models', () => {
       streaming: true,
       imageInput: false,
       toolCalling: false,
+      imageOutput: false,
+      imageEditing: false,
+      videoInput: false,
+      videoOutput: false,
+      audioInput: false,
+      audioOutput: false,
+      embeddings: false,
     });
     expect(model?.limits).toEqual({});
     expect(model?.supportedParams).toEqual(['temperature']);

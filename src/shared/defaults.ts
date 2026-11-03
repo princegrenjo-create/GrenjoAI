@@ -1,3 +1,4 @@
+import { makeCapabilities } from './capabilities';
 /**
  * Application-wide constants: provider presets, generation-parameter metadata,
  * a small built-in model hint list, and default settings.
@@ -276,19 +277,18 @@ export interface ModelHint {
   weirdnessSupported: boolean;
 }
 
-const CHAT_STREAM: ModelCapabilities = {
+const CHAT_STREAM: ModelCapabilities = makeCapabilities({
   chat: true,
   streaming: true,
-  imageInput: false,
   toolCalling: true,
-};
+});
 
-const CHAT_STREAM_VISION: ModelCapabilities = {
+const CHAT_STREAM_VISION: ModelCapabilities = makeCapabilities({
   chat: true,
   streaming: true,
   imageInput: true,
   toolCalling: true,
-};
+});
 
 /**
  * Deliberately small. Every entry is a widely published identifier, listed so a

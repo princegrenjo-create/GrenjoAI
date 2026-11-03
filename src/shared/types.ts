@@ -101,10 +101,25 @@ export interface GenerationParams {
   reasoningEffort?: ReasoningEffort;
 }
 
+/**
+ * What a model can do. Every flag is an explicit declaration; absent means the
+ * same as `false` (see `hasCapability`), and `src/shared/capabilities.ts` owns
+ * the vocabulary, the task routing and the provenance wording.
+ *
+ * `chat` means text generation — the name predates the capability model and is
+ * kept because stored rows, exported configs and tests already use it.
+ */
 export interface ModelCapabilities {
   chat: boolean;
   streaming: boolean;
   imageInput: boolean;
+  imageOutput: boolean;
+  imageEditing: boolean;
+  videoInput: boolean;
+  videoOutput: boolean;
+  audioInput: boolean;
+  audioOutput: boolean;
+  embeddings: boolean;
   toolCalling: boolean;
 }
 

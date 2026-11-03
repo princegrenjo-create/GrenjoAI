@@ -75,6 +75,13 @@ export const DEFAULT_MODEL_CAPABILITIES: ModelCapabilities = {
   streaming: true,
   imageInput: false,
   toolCalling: false,
+  imageOutput: false,
+  imageEditing: false,
+  videoInput: false,
+  videoOutput: false,
+  audioInput: false,
+  audioOutput: false,
+  embeddings: false,
 };
 
 function optionalNumber(value: unknown): number | undefined {
@@ -113,11 +120,20 @@ export function toGenerationParams(value: unknown): GenerationParams | null {
 
 export function toModelCapabilities(value: unknown): ModelCapabilities {
   const row = isRow(value) ? value : {};
+  // Tolerant read: a row written before the capability model existed has the
+  // original four flags and none of the others, and is still a valid chat model.
   return {
     chat: bool(row.chat, DEFAULT_MODEL_CAPABILITIES.chat),
     streaming: bool(row.streaming, DEFAULT_MODEL_CAPABILITIES.streaming),
     imageInput: bool(row.imageInput, DEFAULT_MODEL_CAPABILITIES.imageInput),
     toolCalling: bool(row.toolCalling, DEFAULT_MODEL_CAPABILITIES.toolCalling),
+    imageOutput: bool(row.imageOutput, DEFAULT_MODEL_CAPABILITIES.imageOutput),
+    imageEditing: bool(row.imageEditing, DEFAULT_MODEL_CAPABILITIES.imageEditing),
+    videoInput: bool(row.videoInput, DEFAULT_MODEL_CAPABILITIES.videoInput),
+    videoOutput: bool(row.videoOutput, DEFAULT_MODEL_CAPABILITIES.videoOutput),
+    audioInput: bool(row.audioInput, DEFAULT_MODEL_CAPABILITIES.audioInput),
+    audioOutput: bool(row.audioOutput, DEFAULT_MODEL_CAPABILITIES.audioOutput),
+    embeddings: bool(row.embeddings, DEFAULT_MODEL_CAPABILITIES.embeddings),
   };
 }
 

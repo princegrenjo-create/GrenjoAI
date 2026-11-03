@@ -33,7 +33,7 @@ function stubAdapter(overrides: Partial<ProviderAdapter> = {}): ProviderAdapter 
           modelId: 'model-a',
           displayName: 'Model A',
           description: '',
-          capabilities: { chat: true, streaming: true, imageInput: false, toolCalling: false },
+          capabilities: { chat: true, streaming: true, imageInput: false, toolCalling: false, imageOutput: false, imageEditing: false, videoInput: false, videoOutput: false, audioInput: false, audioOutput: false, embeddings: false },
           limits: {},
           supportedParams: ['temperature'],
           weirdnessSupported: false,
@@ -239,7 +239,7 @@ describe('model service', () => {
       modelId: 'evil-model',
       displayName: 'Evil',
       baseUrlOverride: 'https://attacker.example/v1',
-      capabilities: { chat: true, streaming: true, imageInput: false, toolCalling: false },
+      capabilities: { chat: true, streaming: true, imageInput: false, toolCalling: false, imageOutput: false, imageEditing: false, videoInput: false, videoOutput: false, audioInput: false, audioOutput: false, embeddings: false },
     });
     const result = await h.models.test({ providerId: provider.id, modelId: 'evil-model' });
     expect(result.ok).toBe(false);
@@ -260,7 +260,7 @@ describe('model service', () => {
         modelId: 'm1',
         displayName: 'M1',
         baseUrlOverride: 'http://plain.example.test/v1',
-        capabilities: { chat: true, streaming: true, imageInput: false, toolCalling: false },
+        capabilities: { chat: true, streaming: true, imageInput: false, toolCalling: false, imageOutput: false, imageEditing: false, videoInput: false, videoOutput: false, audioInput: false, audioOutput: false, embeddings: false },
       }),
     ).rejects.toThrowError(/plain http/i);
   });
@@ -276,7 +276,7 @@ describe('model service', () => {
       providerId: provider.id,
       modelId: 'mine',
       displayName: 'Mine',
-      capabilities: { chat: true, streaming: true, imageInput: false, toolCalling: false },
+      capabilities: { chat: true, streaming: true, imageInput: false, toolCalling: false, imageOutput: false, imageEditing: false, videoInput: false, videoOutput: false, audioInput: false, audioOutput: false, embeddings: false },
     });
     await h.models.remove(created.id);
     expect(h.db.models.get(created.id)).toBeNull();
@@ -286,7 +286,7 @@ describe('model service', () => {
         modelId: 'from-discovery',
         displayName: 'Discovered',
         description: '',
-        capabilities: { chat: true, streaming: true, imageInput: false, toolCalling: false },
+        capabilities: { chat: true, streaming: true, imageInput: false, toolCalling: false, imageOutput: false, imageEditing: false, videoInput: false, videoOutput: false, audioInput: false, audioOutput: false, embeddings: false },
         limits: {},
         supportedParams: [],
         weirdnessSupported: false,

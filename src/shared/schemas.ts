@@ -61,12 +61,28 @@ export const generationParamsSchema = rawParamsSchema.transform(compactParams);
 
 export const paramKeySchema = z.enum(GEN_PARAM_KEYS);
 
+/**
+ * Capability flags.
+ *
+ * The four original flags stay **required** so an exported config from 0.1.0
+ * still imports; the seven added in v0.2 default to `false` when absent, so
+ * nothing that was stored or exported before this change is rejected. `.strict()`
+ * still refuses an unknown key, which is what keeps a typo from silently becoming
+ * a dropped capability.
+ */
 export const capabilitiesSchema = z
   .object({
     chat: z.boolean(),
     streaming: z.boolean(),
     imageInput: z.boolean(),
     toolCalling: z.boolean(),
+    imageOutput: z.boolean().default(false),
+    imageEditing: z.boolean().default(false),
+    videoInput: z.boolean().default(false),
+    videoOutput: z.boolean().default(false),
+    audioInput: z.boolean().default(false),
+    audioOutput: z.boolean().default(false),
+    embeddings: z.boolean().default(false),
   })
   .strict();
 
