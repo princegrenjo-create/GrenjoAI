@@ -565,7 +565,18 @@ four unprovable items named and owned in `docs/RELEASE-GATE-2026-11-03.md`. Evid
 
 ---
 
-## PART-014 — Independent audit of the final state
+## PART-014 — Independent audit of the final state — **COMPLETE 2026-11-03**
+
+**State:** complete (`788c343`). Two non-author reviewers: a code/security auditor (verdict *ship with
+conditions*) and an evidence verifier (verdict *honest, one misleading condition*). Three real defects were
+reproduced — a cancel overwritten by an in-flight result, a duplicate-bytes failure, and a retry budget spent
+by successful polls — and all three are fixed with regression tests. Two of the Lead's own claims were proved
+wrong and corrected rather than softened. The version is now 0.2.0 with a freshly built, hashed installer.
+Evidence: `PLAN_EVIDENCE.md` §"PART-014".
+
+---
+
+## PART-014 (original brief)
 
 - **G:** A second pair of eyes on the finished work, by someone who did not write it.
 - **T:**

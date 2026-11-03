@@ -660,6 +660,54 @@ copy — recorded here because a drill that silently proves nothing is worse tha
 triggers occurred (a gate did not fail, the drill lost no row, the artefact was built once from the audited
 commit).
 
+## PART-014 — Independent audit (complete)
+
+**State:** PASSED with fixes. Two reviewers who wrote none of this work audited it; their verdicts were **SHIP
+WITH CONDITIONS** (code/security) and **HONEST, one misleading condition** (evidence). Three real defects were
+reproduced and are now fixed with regression tests. Commits: audit response `788c343`; artefacts rebuilt at
+**0.2.0**.
+
+**Reports** (in the run sink, not in git — they are audit output, not deliverable source):
+`.work/2026-11-03-audit-consolidation/out/final-audit.md`, `claims-audit.md`.
+
+| What the audit checked | Result |
+|---|---|
+| The diff against `v0.1.0-baseline` (48 commits, 211 files, +13,984/−19,367) | read in full; `chat/service.ts` untouched by the media work |
+| (a) never break Windows or web | **PASS** on everything runnable |
+| (b) never delete user data or credentials | **PASS** — migrations additive; the drill ran on the owner's real profile with zero row loss |
+| (c) no invented endpoints or capabilities | **PASS** — OpenAI docs fetched live (HTTP 200), ids and the `gpt-image-1` shutdown date match; Gemini/BFL remain documentation-only |
+| (d) no rewriting for tidiness | **PASS** — `executor.ts` verified dead before removal; the chat transport is untouched |
+| 19 adversarial checks on the media surfaces | **14 clean**; the 5 that were not are M-01/M-02/M-03 (fixed) and M-06/M-07 (fixed / accepted) |
+| Path-escape shapes against the store | **all 19 refused**, including `%2e%2e%2f` traversal after decoding |
+| Host-confusion shapes against the download allowlist | **all refused** — `bfl.ai.evil.com`, `evil.com#@bfl.ai`, `http:`, `data:`, `javascript:` |
+| Supply chain | `npm audit --omit=dev` **0**; 18 dev-only; the two new devDeps now exact-pinned; `app.asar` contains **0** playwright/axe/vitest paths |
+| Evidence claims | 16 of 16 re-verified by a second reviewer; the axe suite was attacked with injected violations (`image-alt`, `button-name`, `html-has-lang`) and **threw**, so it is not hollow |
+
+**The three defects, fixed here:**
+
+| ID | Was | Now |
+|---|---|---|
+| M-01 | a cancel during an in-flight poll was overwritten: media persisted, job `succeeded` | repository refuses any transition out of a terminal state; engine re-reads before persisting. Test: *"does not store media for a job cancelled while its poll was open"* |
+| M-02 | re-persisting identical bytes failed the job on the unique index (crash-resume path) | `getByRelativePath` reuses the row. Test: *"reuses the media row instead of failing a job whose file already exists"* |
+| M-03 | every successful poll spent the retry budget → long video dies on the first blip | polls drive backoff from their own counter; `attempts` counts failures. Two tests |
+
+**Two corrections to the Lead's own documents**, made because the auditors proved them wrong:
+
+- **C1** blamed "the file sandbox denying Chromium's writes". Wrong: the Electron binary fails with the
+  sandbox **off** too (`electron.exe --version` → `0x80000003`, no output). The condition stands; the reason is
+  withdrawn.
+- **C2** claimed "no API key exists". **False**: three providers carry key fingerprints and
+  `credentials.bin` holds three encrypted entries. A live call was not made because it spends the owner's
+  credit, not because it could not be. "Could not" had been written where "did not" was true.
+
+**Accepted, with the reason recorded:** M-07 (the engine has no re-entrancy guard of its own; the service
+serialises it and a second caller would be a code change), M-09 (`media://` ignores `Range`, so seeking may
+re-fetch), M-11 (the axe scans cover a narrower page state than the headline implies — now stated in the gate).
+
+**Final gates after the fixes:** audit 276 files / 0 blocking · typecheck 0 · node **742** (+5, 1 skipped
+drill) · renderer 217 · e2e 10 · `npm run dist` 0 → `Grenjo AI Tool-Setup-0.2.0-x64.exe`, 124,981,723 B,
+sha256 `AB18B547…D421`.
+
 ## Cross-cutting: the environment has two known quirks
 
 | # | Claim | Verdict | Evidence |
