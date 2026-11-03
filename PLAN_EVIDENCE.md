@@ -588,6 +588,30 @@ this part is the first to *render* the link rather than invent one.
 **Not verified:** the strip against real generated files (`media://` needs the Electron main process), and how
 it looks with many items — the strip scrolls horizontally, which jsdom cannot assert.
 
+## PART-012 — macOS packaging configuration (complete, not run)
+
+**State:** configured and verified as far as this host allows. One commit (`1727e34`).
+
+| Item | What was added | Evidence |
+|---|---|---|
+| `mac:` target | dmg + zip, **x64 and arm64**, `icon: build/icon.icns`, `category`, `artifactName` | config loads: `npm run pack:mac` prints `loaded configuration file=…` then stops at electron-builder's own guard |
+| Hardened runtime | `hardenedRuntime: true`, `gatekeeperAssess: false` | same config load |
+| Entitlements | `build/entitlements.mac.plist`: `allow-jit`, `allow-unsigned-executable-memory`, `device.audio-input` — and **nothing else** | read; recorded as threat-model change A11 with the residual |
+| Microphone usage string | `extendInfo.NSMicrophoneUsageDescription` | required or macOS **terminates** the app on first audio capture |
+| arm64 signature | `resetAdHocDarwinSignature` for darwin + arm64 | added in PART-002 (D-09), unchanged here |
+| Scripts | `dist:mac`, `pack:mac` (both gated like the Windows ones) | `package.json` parses; `npm run pack` on Windows still exits 0 with the mac block present |
+| Packaged smoke | platform-aware bundle candidates and data root (`~/Library/Application Support` on darwin) | `node --check` passes; the previous version would have failed twice on a mac for the wrong reason |
+| Docs | build instructions for Windows, macOS and "web"; macOS row in `FEATURES.md`; A11 in the threat model | read |
+
+**The limit, stated exactly:** `npx electron-builder --mac --dir` answers *"Build for macOS is supported
+only on macOS"* after loading the configuration. That proves the YAML is valid and that Windows is unaffected;
+it proves nothing about a running mac app. **No macOS bundle has been built or launched.**
+`codesign -d --entitlements` and the microphone prompt both need a mac.
+
+**What a mac run would establish, in order:** the `.app` launches → the microphone prompt appears on first
+record → the DMG installs by drag → the profile lands in `~/Library/Application Support/Grenjo AI Tool` →
+`npm run smoke:packaged` passes with the platform-aware checks.
+
 ## Cross-cutting: the environment has two known quirks
 
 | # | Claim | Verdict | Evidence |

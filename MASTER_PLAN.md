@@ -109,7 +109,7 @@
 | PART-009 | Video adapters and async job lifecycle | 005 | OK - Gemini Omni + BFL, non-blocking, resumable, expiring URLs downloaded |
 | PART-010 | Video Studio UI and player | 009 | OK - A video workflow that does not freeze the app, browser-verified |
 | PART-011 | Media in conversations | 008, 010 | OK - Generated media lives in the chat, not beside it |
-| PART-012 | macOS packaging configuration | 002 | A mac target correct on paper, provable on a mac |
+| PART-012 | macOS packaging configuration | 002 | OK - A mac target correct on paper; provable only on a mac |
 | PART-013 | Verification battery and release gate | all | Evidence, not claims |
 | PART-014 | Independent audit of the final state | 013 | Findings from someone who did not write the code |
 
@@ -507,7 +507,16 @@ is asserted to still have exactly four buttons. Evidence: `PLAN_EVIDENCE.md` §"
 
 ---
 
-## PART-012 — macOS packaging configuration
+## PART-012 — macOS packaging configuration — **CONFIGURED 2026-11-03, NOT RUN**
+
+**State:** configured (`1727e34`). The mac block, entitlements, usage string, arm64 signature fix and
+platform-aware smoke test are in; the Windows pack still succeeds with them present, which proves the config
+parses. `npm run pack:mac` stops at electron-builder's own guard — *"Build for macOS is supported only on
+macOS"* — so **no mac bundle has been built or launched**. Evidence: `PLAN_EVIDENCE.md` §"PART-012".
+
+---
+
+## PART-012 (original brief)
 
 - **G:** A mac target correct on paper, provable on a mac, and without duplicating a line of application code.
 - **T:**
