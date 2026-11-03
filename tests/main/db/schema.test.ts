@@ -52,6 +52,8 @@ describe('schema and connection', () => {
       'agents',
       'app_settings',
       'conversations',
+      'generation_jobs',
+      'media',
       'messages',
       'models',
       'providers',

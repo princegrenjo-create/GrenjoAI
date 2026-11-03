@@ -15,6 +15,8 @@ import type {
   ConversationRepository,
   CustomModelRepository,
   Database,
+  GenerationJobRepository,
+  MediaRepository,
   MessageRepository,
   MigrationRecord,
   ProviderRepository,
@@ -27,6 +29,7 @@ import { createDbLogger, type DbLogger } from './log';
 import { MigrationState, runMigrations } from './migrations';
 import { SqliteAgentRepository } from './repositories/agents';
 import { SqliteConversationRepository } from './repositories/conversations';
+import { SqliteGenerationJobRepository, SqliteMediaRepository } from './repositories/media';
 import { SqliteMessageRepository } from './repositories/messages';
 import { SqliteModelRepository } from './repositories/models';
 import { SqliteProviderRepository } from './repositories/providers';
@@ -58,6 +61,8 @@ class SqliteDatabase implements Database {
   readonly providers: ProviderRepository;
   readonly settings: SettingsRepository;
   readonly sync: SyncRepository;
+  readonly media: MediaRepository;
+  readonly generationJobs: GenerationJobRepository;
 
   private readonly connection: SqliteConnection;
 
@@ -73,6 +78,8 @@ class SqliteDatabase implements Database {
     this.providers = new SqliteProviderRepository(connection);
     this.settings = new SqliteSettingsRepository(connection);
     this.sync = new SqliteSyncRepository(connection);
+    this.media = new SqliteMediaRepository(connection);
+    this.generationJobs = new SqliteGenerationJobRepository(connection);
   }
 
   transaction<T>(fn: () => T): T {

@@ -17,6 +17,7 @@ import { DbError, describeError } from '../errors';
 import type { DbLogger } from '../log';
 import { INITIAL_SCHEMA_SQL } from './001-initial-schema';
 import { MESSAGE_ATTACHMENTS_SQL } from './002-message-attachments';
+import { MEDIA_SCHEMA_SQL } from './003-media';
 
 export interface Migration {
   readonly version: number;
@@ -29,6 +30,9 @@ export const MIGRATIONS: readonly Migration[] = [
   // Additive: an existing database gains a defaulted column, so a message written
   // before attachments existed reads back with an empty list rather than failing.
   { version: 2, name: 'message-attachments', sql: MESSAGE_ATTACHMENTS_SQL },
+  // Additive: two new tables for generated media and the jobs that produce it.
+  // No existing table or row is touched. Local-only — no sync header.
+  { version: 3, name: 'media', sql: MEDIA_SCHEMA_SQL },
 ];
 
 const SCHEMA_MIGRATIONS_SQL = `

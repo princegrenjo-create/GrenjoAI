@@ -9,6 +9,7 @@
 import crypto from 'node:crypto';
 import { DEFAULT_SETTINGS } from '@shared/defaults';
 import { mergeSettings, normaliseSettings } from '@shared/settings';
+import type { GenerationJob, GenerationMedia } from '@shared/media';
 import type {
   Agent,
   AgentInput,
@@ -37,7 +38,12 @@ import type {
   SyncPendingRow,
   WriteOptions,
 } from '@shared/repository-contract';
-import type { MigrationRecord, SqlRunner } from '@shared/repository-contract';
+import type {
+  GenerationJobRepository,
+  MediaRepository,
+  MigrationRecord,
+  SqlRunner,
+} from '@shared/repository-contract';
 import type { MessageAttachment } from '@shared/attachments';
 
 const NOW = () => new Date().toISOString();
@@ -59,6 +65,8 @@ export interface FakeDatabase extends Database {
     agents: Map<string, Agent>;
     providers: Map<string, ProviderConfig>;
     models: Map<string, ModelDescriptor>;
+    media: Map<string, GenerationMedia>;
+    generationJobs: Map<string, GenerationJob>;
   };
 }
 
@@ -70,6 +78,8 @@ export function createFakeDatabase(options: FakeDatabaseOptions = {}): FakeDatab
   const agents = new Map<string, Agent>();
   const providers = new Map<string, ProviderConfig>();
   const models = new Map<string, ModelDescriptor>();
+  const media = new Map<string, GenerationMedia>();
+  const generationJobs = new Map<string, GenerationJob>();
   const conflicts = new Map<number, SyncConflict & { remotePayload?: unknown; resolution: SyncConflict['resolution'] }>();
   const dirty = new Set<string>();
   const meta = new Map<string, string>();
@@ -560,10 +570,114 @@ export function createFakeDatabase(options: FakeDatabaseOptions = {}): FakeDatab
 
   let open = true;
 
+  const mediaRepo: MediaRepository = {
+    insert(input) {
+      calls.push('media.insert');
+      const row: GenerationMedia = {
+        id: input.id ?? "media-" + String(media.size + 1),
+        kind: input.kind,
+        providerId: input.providerId,
+        modelId: input.modelId,
+        prompt: input.prompt,
+        negativePrompt: input.negativePrompt ?? null,
+        params: { ...input.params },
+        width: input.width ?? null,
+        height: input.height ?? null,
+        durationMs: input.durationMs ?? null,
+        bytes: input.bytes,
+        sha256: input.sha256,
+        mime: input.mime,
+        relativePath: input.relativePath,
+        conversationId: input.conversationId ?? null,
+        messageId: input.messageId ?? null,
+        jobId: input.jobId ?? null,
+        providerJobId: input.providerJobId ?? null,
+        createdAt: input.createdAt ?? now(),
+      };
+      media.set(row.id, row);
+      return clone(row);
+    },
+    get(id) {
+      const row = media.get(id);
+      return row ? clone(row) : null;
+    },
+    list(filter = {}) {
+      const rows = [...media.values()]
+        .filter((row) => (filter.kind === undefined ? true : row.kind === filter.kind))
+        .filter((row) =>
+          filter.conversationId === undefined ? true : row.conversationId === filter.conversationId,
+        )
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      return rows.slice(0, filter.limit ?? 200).map((row) => clone(row));
+    },
+    remove(id) {
+      calls.push('media.remove');
+      return media.delete(id);
+    },
+    totalBytes() {
+      return [...media.values()].reduce((sum, row) => sum + row.bytes, 0);
+    },
+  };
+
+  const jobsRepo: GenerationJobRepository = {
+    insert(input) {
+      calls.push('jobs.insert');
+      const timestamp = now();
+      const row: GenerationJob = {
+        id: input.id ?? "job-" + String(generationJobs.size + 1),
+        task: input.task,
+        providerId: input.providerId,
+        modelId: input.modelId,
+        status: 'queued',
+        progress: null,
+        prompt: input.prompt,
+        params: { ...input.params },
+        remoteId: null,
+        pollUrl: null,
+        errorCode: null,
+        errorMessage: null,
+        retryable: false,
+        attempts: 0,
+        nextPollAt: timestamp,
+        mediaId: null,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        finishedAt: null,
+      };
+      generationJobs.set(row.id, row);
+      return clone(row);
+    },
+    get(id) {
+      const row = generationJobs.get(id);
+      return row ? clone(row) : null;
+    },
+    update(id, patch) {
+      const row = generationJobs.get(id);
+      if (!row) return null;
+      const next = { ...row, ...patch, updatedAt: patch.updatedAt ?? now() } as GenerationJob;
+      generationJobs.set(id, next);
+      return clone(next);
+    },
+    listActive() {
+      return [...generationJobs.values()]
+        .filter((row) => row.status === 'queued' || row.status === 'running')
+        .map((row) => clone(row));
+    },
+    listRecent(limit = 50) {
+      return [...generationJobs.values()]
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, limit)
+        .map((row) => clone(row));
+    },
+    remove(id) {
+      return generationJobs.delete(id);
+    },
+  };
+
   const db: FakeDatabase = {
     filePath: ':memory:',
     calls,
-    tables: { conversations, messages, agents, providers, models },
+    tables: { conversations, messages, agents, providers, models, media, generationJobs },
     sql,
     migrations: {
       version: () => 1,
@@ -576,6 +690,8 @@ export function createFakeDatabase(options: FakeDatabaseOptions = {}): FakeDatab
     providers: providersRepo,
     settings: settingsRepo,
     sync: syncRepo,
+    media: mediaRepo,
+    generationJobs: jobsRepo,
     transaction<T>(fn: () => T): T {
       return fn();
     },

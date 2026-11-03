@@ -10,6 +10,7 @@
  * All methods are synchronous by design: `node:sqlite` is synchronous, and a
  * chat turn must not interleave a half-written message with another write.
  */
+import type { GenerationJob, GenerationJobStatus, GenerationMedia, MediaKind, MediaParams } from './media';
 import type {
   Agent,
   AgentInput,
@@ -212,6 +213,87 @@ export interface MigrationRecord {
   appliedAt: string;
 }
 
+/* ------------------------------------------------------------ media (v0.2) -- */
+
+/**
+ * Generated media and the jobs that produce it.
+ *
+ * Local-only by design: these rows carry no sync header, because generated media
+ * is never uploaded automatically. A job row is the durable record that lets an
+ * in-flight video generation survive an app restart.
+ */
+export interface NewMediaInput {
+  id?: Id;
+  kind: MediaKind;
+  providerId: Id;
+  modelId: string;
+  prompt: string;
+  negativePrompt?: string | null;
+  params: MediaParams;
+  width?: number | null;
+  height?: number | null;
+  durationMs?: number | null;
+  bytes: number;
+  sha256: string;
+  mime: string;
+  /** Path relative to the media root. Absolute paths are rejected by the store. */
+  relativePath: string;
+  conversationId?: Id | null;
+  messageId?: Id | null;
+  jobId?: string | null;
+  providerJobId?: string | null;
+  createdAt?: string;
+}
+
+export interface MediaListFilter {
+  kind?: MediaKind;
+  conversationId?: Id;
+  limit?: number;
+}
+
+export interface MediaRepository {
+  insert(input: NewMediaInput): GenerationMedia;
+  get(id: Id): GenerationMedia | null;
+  list(filter?: MediaListFilter): GenerationMedia[];
+  remove(id: Id): boolean;
+  /** Sum of every stored file's size, for the disk budget. */
+  totalBytes(): number;
+}
+
+export interface NewJobInput {
+  id?: string;
+  task: MediaKind;
+  providerId: Id;
+  modelId: string;
+  prompt: string;
+  params: MediaParams;
+}
+
+export interface JobPatch {
+  status?: GenerationJobStatus;
+  progress?: number | null;
+  remoteId?: string | null;
+  pollUrl?: string | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  retryable?: boolean;
+  attempts?: number;
+  nextPollAt?: string | null;
+  mediaId?: string | null;
+  finishedAt?: string | null;
+  updatedAt?: string;
+}
+
+export interface GenerationJobRepository {
+  insert(input: NewJobInput): GenerationJob;
+  get(id: string): GenerationJob | null;
+  update(id: string, patch: JobPatch): GenerationJob | null;
+  /** Every job still queued or running: the crash-recovery work list. */
+  listActive(): GenerationJob[];
+  listRecent(limit?: number): GenerationJob[];
+  remove(id: string): boolean;
+}
+
 export interface Database {
   readonly filePath: string;
   readonly sql: SqlRunner;
@@ -223,6 +305,8 @@ export interface Database {
   readonly providers: ProviderRepository;
   readonly settings: SettingsRepository;
   readonly sync: SyncRepository;
+  readonly media: MediaRepository;
+  readonly generationJobs: GenerationJobRepository;
   /** Runs `fn` inside one transaction; rolls back if it throws. */
   transaction<T>(fn: () => T): T;
   /** Flush WAL pages to the main file (called before a backup or on quit). */
