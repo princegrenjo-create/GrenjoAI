@@ -1,5 +1,6 @@
 import { screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MODEL_HINTS_AS_OF } from '@shared/defaults';
 import { appError } from '@shared/errors';
 import type { DiscoveredModel } from '@shared/provider-contract';
 import type { ModelDescriptor, ProviderConfig } from '@shared/types';
@@ -64,7 +65,7 @@ describe('Models & Providers page', () => {
     expect(screen.getByRole('heading', { name: 'Others / Custom Models' })).toBeInTheDocument();
     expect(screen.getByText('No custom models yet. Add one when a provider serves a model that discovery cannot see, or when you need to pin down the endpoint and the parameters it honours.')).toBeInTheDocument();
     expect(screen.getByText(/The built-in model list is a/)).toBeInTheDocument();
-    expect(screen.getByText('hint list as of 2026-10-29')).toBeInTheDocument();
+    expect(screen.getByText(`hint list as of ${MODEL_HINTS_AS_OF}`)).toBeInTheDocument();
     expect(screen.getByText(/Discovery through the provider's own API is authoritative/)).toBeInTheDocument();
   });
 

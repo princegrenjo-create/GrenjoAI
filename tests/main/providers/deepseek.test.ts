@@ -197,7 +197,7 @@ describe('DeepSeek discovery', () => {
     expect(adapter.buildTestRequest(runtime).url).toBe('https://api.example.test/v1/models');
   });
 
-  it('parses the {data:[...]} list, applies hints and excludes non-chat models', () => {
+  it('parses the {data:[...]} list, applies hints and keeps a non-chat model as unclassified', () => {
     const body = JSON.stringify({
       object: 'list',
       data: [
@@ -209,7 +209,16 @@ describe('DeepSeek discovery', () => {
 
     const { models, error } = adapter.parseListModels(200, body);
     expect(error).toBeNull();
-    expect(models.map((model) => model.modelId)).toEqual(['deepseek-chat', 'deepseek-reasoner']);
+    // The embedding model is kept, not deleted: deleting is why an image model
+    // could never appear in the picker. It is listed with nothing assumed.
+    expect(models.map((model) => model.modelId)).toEqual([
+      'deepseek-chat',
+      'deepseek-reasoner',
+      'text-embedding-3-small',
+    ]);
+    const unclassified = models[2];
+    expect(Object.values(unclassified?.capabilities ?? {})).not.toContain(true);
+    expect(unclassified?.supportedParams).toEqual([]);
 
     const chat = models[0];
     expect(chat?.displayName).toBe('DeepSeek Chat');

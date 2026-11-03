@@ -2,6 +2,7 @@
  * Model management service: list, create/edit/delete custom models, persist
  * discovery results, and probe a single model with a real (tiny) request.
  */
+import { hasCapability } from '@shared/capabilities';
 import { AppError, appError, toAppError } from '@shared/errors';
 import type { CredentialStore } from '../credentials';
 import type {
@@ -172,6 +173,23 @@ export function createModelService(deps: ModelServiceDeps): ModelService {
         return { ok: false, latencyMs: null, sample: null, error: toAppError(error, 'validation') };
       }
       const adapter = registry.get(provider.kind);
+      /*
+       * The probe is a chat completion, so it is only meaningful for a model that
+       * declares text generation. Sending `chat/completions` at an image or video
+       * model would produce a provider error that looks like a broken model
+       * rather than a probe that cannot apply.
+       */
+      if (!hasCapability(resolved.model.capabilities, 'chat')) {
+        return {
+          ok: false,
+          latencyMs: null,
+          sample: null,
+          error: appError(
+            'validation',
+            'This model does not accept chat requests, so a chat prompt cannot test it. It is still listed and can be selected for the task it does support.',
+          ),
+        };
+      }
       const runtime: ProviderRuntime = {
         providerId: provider.id,
         baseUrl: endpoint,

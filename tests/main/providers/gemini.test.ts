@@ -205,10 +205,15 @@ describe('Gemini discovery', () => {
     ],
   });
 
-  it('keeps only generateContent models and strips the models/ prefix', () => {
+  it('keeps every model, strips the models/ prefix, and marks a non-chat one unclassified', () => {
     const { models, error } = adapter.parseListModels(200, LIST);
     expect(error).toBeNull();
-    expect(models.map((model) => model.modelId)).toEqual(['gemini-2.5-pro']);
+    // Gemini states the supported methods per model, which is the one place a
+    // provider tells us a model cannot chat. That is a classification, not a
+    // reason to hide the model.
+    expect(models.map((model) => model.modelId)).toEqual(['gemini-2.5-pro', 'gemini-embedding-001']);
+    const unclassified = models[1];
+    expect(Object.values(unclassified?.capabilities ?? {})).not.toContain(true);
   });
 
   it('uses provider token limits and catalog capabilities', () => {

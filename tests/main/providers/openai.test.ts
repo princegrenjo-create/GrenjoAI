@@ -107,13 +107,20 @@ describe('OpenAI response parsing', () => {
 });
 
 describe('OpenAI discovery and errors', () => {
-  it('parses {data:[...]} without inventing capabilities', () => {
+  it('parses {data:[...]}, inventing no capability for an unclassified id', () => {
     const result = adapter.parseListModels(
       200,
       JSON.stringify({ data: [{ id: 'gpt-4o' }, { id: 'o3-mini' }, { id: 'gpt-4o-audio-preview' }] }),
     );
     expect(result.error).toBeNull();
-    expect(result.models.map((model) => model.modelId)).toEqual(['gpt-4o', 'o3-mini']);
+    // The audio-preview id is kept and marked unclassified rather than deleted,
+    // so a model that exists is never invisible to the user.
+    expect(result.models.map((model) => model.modelId)).toEqual([
+      'gpt-4o',
+      'o3-mini',
+      'gpt-4o-audio-preview',
+    ]);
+    expect(Object.values(result.models[2]?.capabilities ?? {})).not.toContain(true);
 
     const o3 = result.models[1];
     expect(o3?.capabilities.imageInput).toBe(false);

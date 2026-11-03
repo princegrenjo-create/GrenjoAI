@@ -68,14 +68,6 @@ const OPENAI_FINISH_REASONS: Readonly<Record<string, string>> = {
 const CONTEXT_LENGTH_PATTERN =
   /context[_ ]length|maximum context|too many tokens|reduce the length|prompt is too long|input is too long/i;
 
-/**
- * Model ids that are not chat models. Discovery exists to populate a chat model
- * picker, and `inferCapabilities` is conservative in the other direction (it
- * assumes chat), so a clear non-chat id is filtered out here rather than shipped
- * with a fabricated capability.
- */
-const NON_CHAT_MODEL_PATTERN =
-  /(^|[-_/])(embedding|embeddings|whisper|tts|dall-e|moderation|image|images|sora|transcribe|realtime|audio|speech|rerank|ocr)([-_/]|$)/i;
 
 /**
  * OpenAI chat messages. A text-only turn keeps the plain-string form, which is
@@ -347,7 +339,6 @@ export function parseOpenAiModels(kind: ProviderKind, status: number, body: stri
     const record = asRecord(entry);
     const modelId = stringAt(record, 'id');
     if (!modelId || seen.has(modelId)) continue;
-    if (NON_CHAT_MODEL_PATTERN.test(modelId)) continue;
     seen.add(modelId);
 
     const hint = findModelHint(kind, modelId);

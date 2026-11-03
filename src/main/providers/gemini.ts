@@ -292,15 +292,20 @@ export function parseGeminiModels(
     if (!name) continue;
 
     const methods = readStringArray(arrayAt(record, 'supportedGenerationMethods'));
-    // Only models that can actually answer a chat request belong in the picker.
-    if (methods.length > 0 && !methods.includes('generateContent')) continue;
+    /*
+     * Gemini is the one provider that tells us, per model, whether it can answer
+     * a chat request. A model that cannot is kept and listed as `unclassified`
+     * rather than dropped: deleting it is why an image model could never appear
+     * in the picker, and the list is also how a user learns the model exists.
+     */
+    const canChat = methods.length === 0 || methods.includes('generateContent');
 
     const modelId = name.startsWith('models/') ? name.slice('models/'.length) : name;
     if (modelId.length === 0 || seen.has(modelId)) continue;
     seen.add(modelId);
 
     const hint = findModelHint('gemini', modelId);
-    const profile = inferCapabilities('gemini', modelId, hint);
+    const profile = inferCapabilities('gemini', modelId, hint, { forceUnclassified: !canChat });
     const limits = { ...profile.limits };
     const contextWindow = numberAt(record, 'inputTokenLimit');
     if (contextWindow !== null) limits.contextWindow = contextWindow;

@@ -275,6 +275,14 @@ export interface ModelHint {
   limits: ModelLimits;
   supportedParams: GenParamKey[];
   weirdnessSupported: boolean;
+  /**
+   * ISO date after which the provider no longer serves this id.
+   *
+   * Model line-ups churn fast — three OpenAI image models retire within weeks of
+   * this list being written — so a hint carries its own expiry and the picker
+   * hides an expired id instead of offering a request that will 404.
+   */
+  shutdownDate?: string;
 }
 
 const CHAT_STREAM: ModelCapabilities = makeCapabilities({
@@ -290,12 +298,34 @@ const CHAT_STREAM_VISION: ModelCapabilities = makeCapabilities({
   toolCalling: true,
 });
 
+/*
+ * Media models. These are the *only* places a model is declared able to generate
+ * or edit an image, or generate video. Nothing infers an output modality from an
+ * id, and every entry below is dated against the provider's published line-up.
+ */
+const IMAGE_GEN: ModelCapabilities = makeCapabilities({
+  imageOutput: true,
+  imageInput: true,
+  imageEditing: true,
+});
+
+/** Generates images from text and reference images, but has no documented edit flow. */
+const IMAGE_GEN_NO_EDIT: ModelCapabilities = makeCapabilities({
+  imageOutput: true,
+  imageInput: true,
+});
+
+const VIDEO_GEN: ModelCapabilities = makeCapabilities({
+  videoOutput: true,
+  imageInput: true,
+});
+
 /**
  * Deliberately small. Every entry is a widely published identifier, listed so a
  * fresh install can start a conversation before the user runs discovery.
  * `MODEL_HINTS_AS_OF` is shown in the UI so the list never masquerades as live.
  */
-export const MODEL_HINTS_AS_OF = '2026-10-29';
+export const MODEL_HINTS_AS_OF = '2026-11-03';
 
 export const MODEL_HINTS: Record<ProviderKind, ModelHint[]> = {
   deepseek: [
@@ -319,6 +349,50 @@ export const MODEL_HINTS: Record<ProviderKind, ModelHint[]> = {
     },
   ],
   openai: [
+    /*
+     * Image generation (Images API). Verified against the OpenAI Images
+     * reference on 2026-11-03: /v1/images/generations and /v1/images/edits,
+     * base64 output only, up to 16 reference images and a mask on edits.
+     * `chatgpt-image-latest` is listed with its published shutdown date so the
+     * picker has a real expired id to hide rather than a theoretical one.
+     */
+    {
+      modelId: 'gpt-image-2.5-sunburst',
+      displayName: 'GPT Image 2.5 Sunburst',
+      description: 'OpenAI image model. Generation and editing, including masks and up to 16 reference images.',
+      capabilities: IMAGE_GEN,
+      limits: {},
+      supportedParams: [],
+      weirdnessSupported: false,
+    },
+    {
+      modelId: 'gpt-image-2.5-flare',
+      displayName: 'GPT Image 2.5 Flare',
+      description: 'OpenAI image model, tuned for a different style balance than Sunburst.',
+      capabilities: IMAGE_GEN,
+      limits: {},
+      supportedParams: [],
+      weirdnessSupported: false,
+    },
+    {
+      modelId: 'gpt-image-2',
+      displayName: 'GPT Image 2',
+      description: 'OpenAI image model. Arbitrary sizes in multiples of 16; transparent backgrounds are in preview.',
+      capabilities: IMAGE_GEN,
+      limits: {},
+      supportedParams: [],
+      weirdnessSupported: false,
+    },
+    {
+      modelId: 'chatgpt-image-latest',
+      displayName: 'ChatGPT Image (latest)',
+      description: 'OpenAI image model. Shut down on 2026-12-01; listed with its expiry so the picker hides it.',
+      capabilities: IMAGE_GEN,
+      limits: {},
+      supportedParams: [],
+      weirdnessSupported: false,
+      shutdownDate: '2026-12-01',
+    },
     {
       modelId: 'gpt-4o',
       displayName: 'GPT-4o',
@@ -366,6 +440,66 @@ export const MODEL_HINTS: Record<ProviderKind, ModelHint[]> = {
     },
   ],
   gemini: [
+    /*
+     * Image and video generation on the Gemini API, verified 2026-11-03.
+     * Images and video are documented on the Interactions endpoint, not
+     * `generateContent`; `gemini-3.1-flash-lite-image` is the one model the docs
+     * say is not built for multiple reference images or sequential editing.
+     */
+    {
+      modelId: 'gemini-nano-banana-2.1',
+      displayName: 'Nano Banana 2.1',
+      description: 'Gemini image model with multi-turn editing and multiple reference images.',
+      capabilities: IMAGE_GEN,
+      limits: {},
+      supportedParams: [],
+      weirdnessSupported: false,
+    },
+    {
+      modelId: 'gemini-3.1-flash-image',
+      displayName: 'Nano Banana 2',
+      description: 'Gemini image model; adds a 512 px size over the 2.1 workhorse.',
+      capabilities: IMAGE_GEN,
+      limits: {},
+      supportedParams: [],
+      weirdnessSupported: false,
+    },
+    {
+      modelId: 'gemini-3-pro-image',
+      displayName: 'Nano Banana Pro',
+      description: 'Gemini image model that interleaves text and images in one reply.',
+      capabilities: IMAGE_GEN,
+      limits: {},
+      supportedParams: [],
+      weirdnessSupported: false,
+    },
+    {
+      modelId: 'gemini-3.1-flash-lite-image',
+      displayName: 'Nano Banana 2 Lite',
+      description: 'Fastest Gemini image model, 1K only. Not built for multiple references or sequential editing.',
+      capabilities: IMAGE_GEN_NO_EDIT,
+      limits: {},
+      supportedParams: [],
+      weirdnessSupported: false,
+    },
+    {
+      modelId: 'gemini-2.5-flash-image',
+      displayName: 'Nano Banana (legacy)',
+      description: 'Earlier Gemini image model; the provider recommends migrating to a newer one.',
+      capabilities: IMAGE_GEN,
+      limits: {},
+      supportedParams: [],
+      weirdnessSupported: false,
+    },
+    {
+      modelId: 'gemini-omni-1.1-flash',
+      displayName: 'Gemini Omni Flash',
+      description: 'Gemini video model: text or image to video, with audio, and +10 s extension per turn.',
+      capabilities: VIDEO_GEN,
+      limits: {},
+      supportedParams: [],
+      weirdnessSupported: false,
+    },
     {
       modelId: 'gemini-2.5-pro',
       displayName: 'Gemini 2.5 Pro',
