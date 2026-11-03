@@ -16,7 +16,17 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const SRC = path.join(root, 'src');
+
+/**
+ * Everything a reviewer would otherwise have to remember to check by hand.
+ *
+ * The application tree is not the only place a rule can be broken: a committed
+ * key-shaped fixture, a `TODO` or a silenced compiler error in `tests/` or
+ * `scripts/` ships in the repository exactly like one in `src/`. Scanning only
+ * `src/` meant the gate could pass while the test harness carried the very
+ * patterns the gate exists to catch.
+ */
+const SCAN_DIRS = ['src', 'tests', 'scripts'];
 
 const RULES = [
   {
@@ -90,9 +100,108 @@ const RULES = [
   },
 ];
 
+/**
+ * Files whose job is to contain the banned patterns as data.
+ *
+ * Each entry names a specific file and the specific rules it is exempt from,
+ * never a blanket waiver: every other rule still applies to that file, and every
+ * rule still applies to every other file. Every waiver is printed at the end of
+ * a run, so it is visible in the build log instead of buried here.
+ *
+ * The alternative — not scanning tests and scripts at all — is what let the gate
+ * pass while the test harness carried the very patterns it exists to catch.
+ */
 const ALLOW = [
-  // The gate's own rule text and intentional documentation of the rule.
-  { file: 'src\\main\\ipc\\register.ts', rule: 'secret-literal' },
+  {
+    file: 'scripts/quality-gate.mjs',
+    rules: ['deferred-work', 'silenced-type', 'unsafe-html', 'service-role'],
+    reason: 'the rule table must spell out every pattern it bans',
+  },
+  {
+    file: 'tests/main/sync/security-scan.test.ts',
+    rules: ['deferred-work', 'silenced-type', 'service-role'],
+    reason: 'asserts that the repository scanner detects these patterns',
+  },
+  {
+    file: 'tests/main/sync/client.test.ts',
+    rules: ['service-role'],
+    reason: 'asserts that a service_role key is refused',
+  },
+  {
+    file: 'tests/main/providers/fake-http.ts',
+    rules: ['secret-literal'],
+    reason: 'shared fake provider key used by the adapter tests',
+  },
+  {
+    file: 'tests/main/providers/openai.test.ts',
+    rules: ['secret-literal'],
+    reason: 'asserts the Authorization header built from a fake key',
+  },
+  {
+    file: 'tests/main/providers/openaiCompatible.test.ts',
+    rules: ['secret-literal'],
+    reason: 'asserts the Authorization header built from a fake key',
+  },
+  {
+    file: 'tests/main/providers/registry.test.ts',
+    rules: ['secret-literal'],
+    reason: 'fake key passed through the registry',
+  },
+  {
+    file: 'tests/main/providers/deepseek.test.ts',
+    rules: ['secret-literal'],
+    reason: 'fake key inside a provider error-body fixture',
+  },
+  {
+    file: 'tests/main/services/endpoint-policy.test.ts',
+    rules: ['secret-literal'],
+    reason: 'fake key used to prove a key is bound to its base URL',
+  },
+  {
+    file: 'tests/main/services/providers.test.ts',
+    rules: ['secret-literal'],
+    reason: 'fake key used to assert the key never appears in provider output',
+  },
+  {
+    file: 'tests/main/services/settings.test.ts',
+    rules: ['secret-literal'],
+    reason: 'fake key placed in an exported settings fixture',
+  },
+  {
+    file: 'tests/main/transcription/service.test.ts',
+    rules: ['secret-literal'],
+    reason: 'fake key asserted in a transcription request header',
+  },
+  {
+    file: 'tests/main/credentials/credentials.test.ts',
+    rules: ['secret-literal'],
+    reason: 'fake key stored and read back by the credential store',
+  },
+  {
+    file: 'tests/main/ipc/handler.test.ts',
+    rules: ['secret-literal'],
+    reason: 'fake key used to assert IPC error redaction',
+  },
+  {
+    file: 'tests/main/chat/integration.test.ts',
+    rules: ['secret-literal'],
+    reason: 'fake key bound to a provider fixture',
+  },
+  {
+    file: 'tests/main/chat/service.test.ts',
+    rules: ['secret-literal'],
+    reason: 'fake key bound to a provider fixture',
+  },
+  {
+    file: 'tests/node/shared.test.ts',
+    rules: ['secret-literal'],
+    reason: 'fake key used to assert error-message redaction',
+  },
+  {
+    file: 'src/main/ipc/register.ts',
+    rules: ['secret-literal'],
+    reason: 'names the redaction rule it enforces',
+  },
 ];
 
 function walk(dir, files = []) {
@@ -114,8 +223,9 @@ function walk(dir, files = []) {
   return files;
 }
 
-const files = walk(SRC);
+const files = SCAN_DIRS.flatMap((dir) => walk(path.join(root, dir)));
 const findings = [];
+const waived = new Map();
 
 for (const file of files) {
   const relative = path.relative(root, file);
@@ -125,7 +235,11 @@ for (const file of files) {
   for (const rule of RULES) {
     if (rule.onlyIn && !scope.includes(rule.onlyIn)) continue;
     if (rule.ignoreIn?.some((suffix) => scope.endsWith(suffix))) continue;
-    if (ALLOW.some((entry) => entry.rule === rule.id && relative === entry.file)) continue;
+    const waiver = ALLOW.find((entry) => scope === entry.file && entry.rules.includes(rule.id));
+    if (waiver) {
+      waived.set(`${scope} → ${rule.id}`, waiver.reason);
+      continue;
+    }
 
     for (let index = 0; index < lines.length; index += 1) {
       const line = lines[index];
@@ -158,8 +272,19 @@ for (const finding of findings) {
   byRule.set(finding.rule, list);
 }
 
+// Print the waivers on every run: a reviewer should never have to read this
+// file to discover that a scan was narrower than it looks.
+if (waived.size > 0) {
+  process.stdout.write(
+    `\n[quality-gate] waivers (${waived.size}) — patterns allowed as data, file by file\n`,
+  );
+  for (const [pair, reason] of waived) {
+    process.stdout.write(`  skip  ${pair}  (${reason})\n`);
+  }
+}
+
 if (findings.length === 0) {
-  process.stdout.write(`[quality-gate] clean: ${files.length} source files scanned, 0 findings\n`);
+  process.stdout.write(`\n[quality-gate] clean: ${files.length} source files scanned, 0 findings\n`);
   process.exit(0);
 }
 
