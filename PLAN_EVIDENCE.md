@@ -540,6 +540,34 @@ that is not the provider's.
 workspace, so submit bodies, poll parsing, status mapping and the download path are proven and the network is
 not.
 
+## PART-010 — Video Studio UI and player (complete)
+
+**State:** PASSED, browser-verified. One commit (`c3b9691`).
+
+| Requirement | How it is met | Proven by |
+|---|---|---|
+| Job state survives leaving the page | library + jobs moved into one shared `media-store` with a single event subscription | a test renders, emits a job, **unmounts**, renders again and finds the job still listed |
+| Honest progress | `Progress` omits `aria-valuenow` when the value is unknown and says "Working…" | indeterminate job → no `aria-valuenow`, text "Working…"; determinate job → `aria-valuenow="45"` |
+| No blocking | the page never awaits a provider; it subscribes to events | — |
+| Player | `<video controls>` on a `media://local/…` URL, `preload="metadata"`, **no autoplay** | browser test asserts the `src` prefix, `controls`, and the absence of `autoplay` |
+| Parameters when available | aspect ratio for both; resolution for Gemini only; **no duration** for either | jsdom asserts the params sent and that no duration control exists; the browser asserts the same DOM |
+| Failures and cancellation | cancel goes through the service; errors surface as sentences | cancel test; delete names the item before removing |
+| Library, preview, export | shared `MediaGrid` / preview dialog / native save dialog | 7 jsdom tests on this page |
+
+**Two duplications removed instead of copied:** the running-jobs list is one `JobList` component used by both
+studios, and the `media://` URL builder lives once in `shared/media.ts`. The Image Studio was migrated onto the
+same store and its 10 tests pass unchanged — which is the evidence that the migration was behaviour-neutral.
+
+| Gate | PART-009 | PART-010 |
+|---|---|---|
+| node | 737 | 737 |
+| renderer | 205 | **212** (+7) |
+| e2e | 5 | **10** (+5: layout ×2, controls, player, axe) |
+| quality gate | 268 files | **273 files**, 0 blocking |
+
+**Not verified:** the page against a live provider (no key) and `media://` actually resolving (that needs the
+Electron main process, which cannot start here — the browser run asserts the URL shape, not the bytes).
+
 ## Cross-cutting: the environment has two known quirks
 
 | # | Claim | Verdict | Evidence |

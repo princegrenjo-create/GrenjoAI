@@ -107,7 +107,7 @@
 | PART-007 | Image service and persistence (schema 004) | 006 | ✅ Generated images survive a restart and belong to a conversation |
 | PART-008 | Image Studio UI | 007 | OK - A dedicated, on-brand image workflow, proven in a browser |
 | PART-009 | Video adapters and async job lifecycle | 005 | OK - Gemini Omni + BFL, non-blocking, resumable, expiring URLs downloaded |
-| PART-010 | Video Studio UI and player | 009 | A video workflow that does not freeze the app |
+| PART-010 | Video Studio UI and player | 009 | OK - A video workflow that does not freeze the app, browser-verified |
 | PART-011 | Media in conversations | 008, 010 | Generated media lives in the chat, not beside it |
 | PART-012 | macOS packaging configuration | 002 | A mac target correct on paper, provable on a mac |
 | PART-013 | Verification battery and release gate | all | Evidence, not claims |
@@ -456,7 +456,15 @@ with a chat surface that refuses by design and a test proving that refusal is un
 
 ---
 
-## PART-010 — Video Studio UI and player
+## PART-010 — Video Studio UI and player — **COMPLETE 2026-11-03**
+
+**State:** complete (`c3b9691`). Browser-verified: 10 e2e tests total, axe clean on both studios, the player
+asserted not to autoplay and to use `media://local/`. Job state moved into a shared media store so a running
+video survives leaving the page. Evidence: `PLAN_EVIDENCE.md` §"PART-010".
+
+---
+
+## PART-010 (original brief)
 
 - **G:** A video workflow with honest progress and a player that works from disk under the app's CSP.
 - **T:**
