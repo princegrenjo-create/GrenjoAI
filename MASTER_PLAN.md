@@ -101,7 +101,7 @@
 | PART-001 | Baseline checkpoint and evidence run | — | ✅ A tagged, tested starting point nobody has to guess about |
 | PART-002 | Consolidation: dead code and real defects | 001 | ✅ One chat execution path; nine small defects closed |
 | PART-003 | Workspace truth: leftovers, docs, dependencies | 002 | ✅ Tree matches intent; docs stop lying; one dependency gone |
-| PART-004 | Capability-based model registry | 002 | A model can be an image or video model, and the picker knows |
+| PART-004 | Capability-based model registry | 002 | ✅ A model can be an image or video model, and the picker knows |
 | PART-005 | Media store, job engine, IPC, `media://` | 004 | The backend a generation can actually run on |
 | PART-006 | Image adapters: OpenAI + Gemini | 005 | Two confirmed image providers, mocked-tested |
 | PART-007 | Image service and persistence (schema 003) | 006 | Generated images survive a restart and belong to a conversation |
@@ -230,7 +230,15 @@ deliberately not executed** — no batch approval exists, so nothing was removed
 
 ---
 
-## PART-004 — Capability-based model registry
+## PART-004 — Capability-based model registry — **COMPLETE 2026-11-03**
+
+**State:** complete. Commits `a77175c` (contract), `7f8181d` (discovery + hints + probe), `c7cb927` (routing
+tests + legacy import), `9b1d41c` (UI). Evidence: `PLAN_EVIDENCE.md` §"PART-004". Gates at `9b1d41c`:
+typecheck 0, node **624**, renderer **195**, gate 235 files / 0 blocking, build 0.
+
+---
+
+## PART-004 (original brief)
 
 - **G:** Stop treating every model as a chat model. A model declares one or more capabilities; a task selects
   only models that have it; a provider that cannot do the task is visibly unavailable rather than attempted.

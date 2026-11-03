@@ -347,6 +347,47 @@ deletion, and none was attempted). Four commits.
 (`release/win-unpacked/` ~426 MB, `.work/test-runtime/`), three are left `unsure`/cited, and **nothing was
 removed** — the owner has not approved a batch, so the plan stops at the plan.
 
+## PART-004 — Capability-based model registry (complete)
+
+**State:** PASSED. Four commits. The blocker this part removes: **a model could only be a chat model**, and
+discovery *deleted* every id that looked like anything else.
+
+| Commit | What landed | Verified by |
+|---|---|---|
+| `a77175c` | 11-flag `ModelCapabilities`, `shared/capabilities.ts` (vocabulary, task routing, `makeCapabilities`), tolerant schema + codec + import path | typecheck 0 both projects; 611 node / 175 renderer; the four deep-equality assertions now describe eleven flags |
+| `7f8181d` | discovery keeps every model and labels unknown ones `unclassified`; curated image/video hints with `shutdownDate`; probe refuses a non-text model | 611 node; three discovery assertions rewritten to the new contract |
+| `c7cb927` | 12 unit tests over the routing rules + a legacy 0.1.0 export import test + retired-hint filtering in `catalog.ts` | node **624**, 54 files |
+| `9b1d41c` | capability badges, grouped capability editor, task-gated chat and default-model pickers | renderer **195**, 19 files |
+
+| Gate | PART-003 | PART-004 | Delta |
+|---|---|---|---|
+| typecheck | 0 | 0 | — |
+| node tests | 611 | **624** | +13 (12 routing + 1 legacy import) |
+| renderer tests | 175 | **195** | +20 (labels, editor, task gating, settings picker) |
+| quality gate | 230 files | **235 files**, 0 blocking | +5 |
+| build | 0, JS 718.12 kB | 0, JS **721.99 kB** | +3.87 kB, the capability UI |
+
+**Proven, not asserted:**
+
+| Claim | Evidence |
+|---|---|
+| A model can be an image model and nothing else | `supportsTask(imageModel,'image')===true`, `===false` for `'chat'` (`tests/node/capabilities.test.ts`) |
+| An unclassified model is offered for **no** task | every `TaskKind` asserted false; `activeCapabilities(unclassified)` is `[]` |
+| A missing capability record is never treated as a chat model | `supportsTask(null,'chat')===false`, `supportsTask(undefined,'chat')===false` |
+| Nothing infers an output modality from a name | the only inference left is `IMAGE_INPUT_TOKENS` → `imageInput`; `isLikelyNonChat` yields `unclassified`, never `imageOutput` |
+| A 0.1.0 export still imports | a payload with only the four original flags imports and yields `imageOutput:false` … rather than a skip |
+| Discovery no longer hides models | deepseek/gemini/openai discovery tests now expect the non-chat id to be **present** with every flag false |
+| A retired id cannot reach a picker or probe | `listCatalogModels` filters past `shutdownDate`; `chatgpt-image-latest` (2026-12-01) is in the hints as a real expired case |
+| The chat and default-model pickers exclude non-text models | `tests/renderer/chat-model-picker.test.tsx`, `tests/renderer/pages/settings.test.tsx` |
+| The capability editor cannot omit a flag | a test asserts every `CAPABILITY_KEYS` entry is reachable exactly once in the editor |
+
+**New finding raised by the UI workstream and fixed in this part:** the Settings *Default model* picker had
+the same defect as the chat picker — an image or undeclared model could be set as the default for every new
+conversation. Fixed in `SettingsPage.tsx` with its own regression test.
+
+**Not verified:** the rendered look of the badge row and the scroll behaviour of the longer capability editor
+in a real window — jsdom proves the DOM contract, not the pixels. That is the Playwright pass in PART-008.
+
 ## Cross-cutting: the environment has two known quirks
 
 | # | Claim | Verdict | Evidence |
