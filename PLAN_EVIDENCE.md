@@ -612,6 +612,54 @@ it proves nothing about a running mac app. **No macOS bundle has been built or l
 record → the DMG installs by drag → the profile lands in `~/Library/Application Support/Grenjo AI Tool` →
 `npm run smoke:packaged` passes with the platform-aware checks.
 
+## PART-013 — Verification battery and release gate (complete)
+
+**State:** PASSED with four documented conditions. One commit (`da585de`); the artefact is
+`release/Grenjo AI Tool-Setup-0.1.0-x64.exe`, 124,981,226 bytes,
+sha256 `F6992BE632F5C2769C84AE6EF3624716FC6868EF78EBC77ED248B06A14EA48C2`, produced by `npm run dist` at
+`0b62192`. Gate document: `docs/RELEASE-GATE-2026-11-03.md`.
+
+| Gate | Result |
+|---|---|
+| `npm run audit:gate` | 276 files, 0 blocking |
+| `npm run typecheck` | exit 0 |
+| node suite | 62 files / **737 tests** (+1 drill, skipped without `DRILL_DB`) |
+| renderer suite | 22 files / **217 tests** |
+| browser suite | **10 Playwright tests**, axe 0 serious/critical |
+| `npm run build` | exit 0 |
+| `npm run dist` | exit 0 → NSIS installer, hash above |
+| icon in the shipped binary | **PASS** — extracted from the packaged exe, it is the Grenjo mark (PART-001's claim moves from `PLANNED` to `PASSED`) |
+| fuses | **PASS** — `before={…49,48,49,49,48,48,48,49,49} after={…48,49,48,48,49,49,48,49,49}` |
+| version resource | `FileVersion 0.1.0`, `ProductName Grenjo AI Tool` |
+
+**The migration drill, on the owner's real profile** (copied into the sink; original untouched):
+
+| | Before | After |
+|---|---|---|
+| schema_version | **2** | **4** |
+| conversations / messages | 7 (6 visible) / 68 | 7 (6 visible) / 68 |
+| agents / providers / models / settings | 3 / 4 / 128 / 1 | 3 / 4 / 128 / 1 |
+| `media`, `generation_jobs` | absent | present, 0 rows |
+
+It is a **repeatable test**, not a one-off: `DRILL_DB=<copy> npx vitest run … profile-migration.drill.test.ts`.
+The first attempt at this drill showed no change, because the earlier *failed* run had already migrated its own
+copy — recorded here because a drill that silently proves nothing is worse than no drill.
+
+**Four conditions, each with an owner and a closing command** (full detail in the gate document):
+
+| # | Not proven | Why |
+|---|---|---|
+| C1 | a packaged launch | **environment**: the sandbox denies Chromium's process-init writes; a pristine Electron probe fails identically |
+| C2 | a live provider call | no API key |
+| C3 | a macOS build | no mac host |
+| C4 | version number | still `0.1.0` while carrying schema 4 and two features — bump before shipping |
+| C5 | signing | no certificate / Developer ID |
+| C6 | install → launch → uninstall | installing writes outside the workspace |
+
+**Decision: GO WITH CONDITIONS**, with the reasoning written down rather than implied: none of the §5 NO-GO
+triggers occurred (a gate did not fail, the drill lost no row, the artefact was built once from the audited
+commit).
+
 ## Cross-cutting: the environment has two known quirks
 
 | # | Claim | Verdict | Evidence |
