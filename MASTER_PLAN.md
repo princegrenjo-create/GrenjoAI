@@ -111,7 +111,7 @@
 | PART-011 | Media in conversations | 008, 010 | OK - Generated media lives in the chat, not beside it |
 | PART-012 | macOS packaging configuration | 002 | OK - A mac target correct on paper; provable only on a mac |
 | PART-013 | Verification battery and release gate | all | OK - Evidence, not claims; GO WITH CONDITIONS |
-| PART-014 | Independent audit of the final state | 013 | Findings from someone who did not write the code |
+| PART-014 | Independent audit of the final state | 013 | OK - Findings from two who did not write it; three defects fixed |
 
 ---
 
