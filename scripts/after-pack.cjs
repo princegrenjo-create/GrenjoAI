@@ -35,6 +35,19 @@ module.exports = async function afterPack(context) {
 
   const before = await getCurrentFuseWire(executablePath);
 
+  /*
+   * Flipping a fuse rewrites the binary, which invalidates any signature it
+   * already carried. On arm64 macOS the linker's ad-hoc signature is what lets
+   * the kernel map the page cache, so an invalidated one means the app does not
+   * launch at all. `resetAdHocDarwinSignature` re-applies it; it is a no-op
+   * everywhere else, and electron-builder still codesigns afterwards.
+   *
+   * `context.arch` is the numeric Arch enum (arm64 is 3) but is compared as a
+   * string too, so a future electron-builder that passes the name still works.
+   */
+  const isAppleSilicon =
+    platform === 'darwin' && (context.arch === 3 || context.arch === 'arm64');
+
   await flipFuses(executablePath, {
     version: FuseVersion.V1,
     [FuseV1Options.RunAsNode]: false,
@@ -43,6 +56,7 @@ module.exports = async function afterPack(context) {
     [FuseV1Options.EnableCookieEncryption]: true,
     [FuseV1Options.OnlyLoadAppFromAsar]: true,
     [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
+    ...(isAppleSilicon ? { resetAdHocDarwinSignature: true } : {}),
   });
 
   const after = await getCurrentFuseWire(executablePath);
