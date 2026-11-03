@@ -106,7 +106,7 @@
 | PART-006 | Image adapters: OpenAI + Gemini | 005 | ✅ Two confirmed image providers, mocked-tested |
 | PART-007 | Image service and persistence (schema 004) | 006 | ✅ Generated images survive a restart and belong to a conversation |
 | PART-008 | Image Studio UI | 007 | OK - A dedicated, on-brand image workflow, proven in a browser |
-| PART-009 | Video adapters and async job lifecycle | 005 | Gemini Omni + BFL, non-blocking, cancellable, resumable |
+| PART-009 | Video adapters and async job lifecycle | 005 | OK - Gemini Omni + BFL, non-blocking, resumable, expiring URLs downloaded |
 | PART-010 | Video Studio UI and player | 009 | A video workflow that does not freeze the app |
 | PART-011 | Media in conversations | 008, 010 | Generated media lives in the chat, not beside it |
 | PART-012 | macOS packaging configuration | 002 | A mac target correct on paper, provable on a mac |
@@ -418,7 +418,18 @@ built bundle, layout asserted at 940×600 and 1280×860, axe reporting no seriou
 
 ---
 
-## PART-009 — Video adapters and the async job lifecycle
+## PART-009 — Video adapters and the async job lifecycle — **COMPLETE 2026-11-03**
+
+**State:** complete (`21a271a`; node **737** tests, 18 for the video adapters). Evidence: `PLAN_EVIDENCE.md`
+§"PART-009". Gemini Omni (background interaction + polling) and BFL (x-key, polling_url, ten-minute signed
+result downloaded during the poll). `bfl` joined the provider kind table as the first media-only provider,
+with a chat surface that refuses by design and a test proving that refusal is unreachable.
+
+**Not claimed:** a live generation or poll — no keys here.
+
+---
+
+## PART-009 (original brief)
 
 - **G:** Video generation that behaves like a background job, not a frozen window: submit, poll, resume,
   cancel, expire, retry within bounds.

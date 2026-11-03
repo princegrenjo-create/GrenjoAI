@@ -512,6 +512,34 @@ suites, so a release cannot ship without the layout and accessibility gates.
 **Not verified here:** the page against a live provider (no key), and the `media://` images themselves (the
 handler is a packaged-app check for PART-013). `test-results/` and `playwright-report/` are gitignored.
 
+## PART-009 — Video adapters and the async job lifecycle (complete)
+
+**State:** PASSED against fixtures. One commit (`21a271a`), 18 new tests.
+
+| Adapter | Contract | Verified by |
+|---|---|---|
+| `geminiVideo.ts` | `POST /interactions` with `background: true` → interaction id → `GET /interactions/{id}` until terminal → `steps[] → model_output → content[video]` | submit returns `pending` with the handle; poll returns the video; unknown status keeps polling; a provider-side failure is retryable; no key → no HTTP call |
+| `bflVideo.ts` | `POST /v1/flux-3-video` with **`x-key`** → `{id, polling_url}` → poll `Ready/Error/Failed` → **download `result.sample` immediately** | x-key asserted and `Authorization` asserted absent; intermediate status keeps polling; ready → bytes fetched during the poll; failed/ready-without-URL handled |
+| `media-download.ts` | HTTPS only, documented host + subdomains, redirects refused, 512 MB ceiling, bytes not text | 4 tests: dot-boundary host matching (`evil-bfl.ai` refused), foreign host not even fetched, oversize refused from the header, `[0x00,0xff,0x10,0x80]` round-trips exactly |
+
+**The provider kind table gained `bfl`** — the first media-only provider. Its chat surface refuses by design
+rather than pretending to work, and the guard is proved unreachable rather than assumed: every BFL model
+declares `videoOutput` and **not** `chat`, so the picker cannot offer it, and a test asserts that for every
+hint in `MODEL_HINTS.bfl`. Its preset has no chat parameters and no discovery, both asserted.
+
+**Absences asserted, not just observed:** no `duration` for Gemini (it extends in ten-second steps and documents
+no duration field), no image-to-video mode for BFL (`mode` is `t2v`; the second mode is unverified), no negative
+prompt for either.
+
+**Why BFL is the demanding case:** its result is a **signed URL valid for ten minutes**. The adapter downloads
+it during the poll, so the store holds bytes and no row holds a URL that will be dead tomorrow. That is also
+why the download helper refuses a redirect — a redirect would carry a request (and its key header) to a host
+that is not the provider's.
+
+**UNAVAILABLE, not claimed:** a live generation or poll against either provider. No key exists in this
+workspace, so submit bodies, poll parsing, status mapping and the download path are proven and the network is
+not.
+
 ## Cross-cutting: the environment has two known quirks
 
 | # | Claim | Verdict | Evidence |
