@@ -37,7 +37,7 @@ import { createAttachmentStore } from './attachments/store';
 import { createTranscriptionService } from './transcription/service';
 import { MediaStore } from './media/store';
 import { createMediaService, type MediaService } from './media/service';
-import { createMediaAdapterRegistry } from './media/registry';
+import { buildMediaAdapter } from './providers/media-adapters';
 import { installMediaProtocol, registerMediaScheme } from './media/protocol';
 import { resolveUserDataDir } from './profile';
 import {
@@ -314,17 +314,18 @@ async function bootstrap(): Promise<void> {
    * Generated media.
    *
    * The store lives inside the profile (next to the database and the logs), so a
-   * moved or renamed profile keeps its images. The adapter registry is empty in
-   * this build: the image adapters register themselves here, and until one is
-   * registered the service refuses a generation with a sentence that says so
-   * rather than failing three layers down.
+   * moved or renamed profile keeps its images. An adapter is built per provider
+   * kind on demand: OpenAI and Gemini have one, every other kind returns null and
+   * the service says so in a sentence rather than failing three layers down.
    */
   const mediaStore = new MediaStore({ rootDir: path.join(userData, 'media') });
-  const mediaAdapters = createMediaAdapterRegistry();
   const mediaService: MediaService = createMediaService({
     db,
     store: mediaStore,
-    adapterFor: (providerId) => mediaAdapters.get(providerId),
+    adapterFor: (providerId) => {
+      const provider = db.providers.get(providerId);
+      return provider ? buildMediaAdapter(provider, { credentials, transport }) : null;
+    },
     settings: readSettings,
     logger: log.child('media'),
     dialogs: {

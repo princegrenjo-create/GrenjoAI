@@ -34,6 +34,22 @@ export interface SubmitMediaInput {
   prompt: string;
   negativePrompt: string | null;
   params: MediaParams;
+  /**
+   * Reference images for an edit or an image-to-video job.
+   *
+   * Bytes, not ids: the adapter is the only layer that knows how a provider wants
+   * them encoded (data URL, inline part, uploaded file), and the service resolves
+   * an id to bytes before submitting.
+   */
+  references?: MediaReference[];
+  /** Optional inpainting mask, where the provider documents one. */
+  mask?: MediaReference | null;
+}
+
+/** An image the caller already holds the bytes for. */
+export interface MediaReference {
+  bytes: Uint8Array;
+  mime: string;
 }
 
 export interface PollMediaInput {

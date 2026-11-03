@@ -1,5 +1,5 @@
 /**
- * The `media://` scheme and the adapter registry.
+ * The `media://` scheme.
  *
  * The URL helpers are pure, so what is asserted here is the boundary: which URLs
  * this app is willing to produce, and which of them a caller is allowed to turn
@@ -8,22 +8,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import { contentTypeFor, mediaUrlFor, relativePathFromMediaUrl } from '@main/media/protocol';
-import { createMediaAdapterRegistry } from '@main/media/registry';
-import type { MediaJobAdapter } from '@shared/media-job';
 
 const SHA = 'a'.repeat(64);
 const STORED = `${SHA.slice(0, 2)}/${SHA}.png`;
-
-const adapter: MediaJobAdapter = {
-  supportsCancel: false,
-  maxConcurrent: null,
-  async submit() {
-    return { kind: 'pending', remoteId: 'r', pollUrl: null, progress: 0 };
-  },
-  async poll() {
-    return { kind: 'pending', remoteId: 'r', pollUrl: null, progress: 0 };
-  },
-};
 
 describe('media url', () => {
   it('round-trips a stored path through a URL the renderer can use', () => {
@@ -65,26 +52,5 @@ describe('media url', () => {
     expect(contentTypeFor('ab/x.mp4')).toBe('video/mp4');
     expect(contentTypeFor('ab/x.webm')).toBe('video/webm');
     expect(contentTypeFor('ab/x.bin')).toBe('application/octet-stream');
-  });
-});
-
-describe('adapter registry', () => {
-  it('reports absence rather than throwing when a provider has no adapter', () => {
-    const registry = createMediaAdapterRegistry();
-    expect(registry.get('p-1')).toBeNull();
-    expect(registry.ids()).toEqual([]);
-  });
-
-  it('keeps adapters separate per provider, so two of one kind do not share state', () => {
-    const registry = createMediaAdapterRegistry();
-    registry.set('p-1', adapter);
-    registry.set('p-2', adapter);
-    expect(registry.get('p-1')).toBe(adapter);
-    expect(registry.get('p-2')).toBe(adapter);
-    expect(registry.ids().sort()).toEqual(['p-1', 'p-2']);
-
-    registry.remove('p-1');
-    expect(registry.get('p-1')).toBeNull();
-    expect(registry.get('p-2')).toBe(adapter);
   });
 });
