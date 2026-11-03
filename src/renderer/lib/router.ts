@@ -4,7 +4,7 @@
  * store. `#/chat`, `#/chat/<id>`, `#/agents`, `#/models`, `#/settings`, `#/sync`.
  */
 
-export type RouteName = 'chat' | 'image' | 'agents' | 'models' | 'settings' | 'sync';
+export type RouteName = 'chat' | 'image' | 'video' | 'agents' | 'models' | 'settings' | 'sync';
 
 export interface Route {
   name: RouteName;
@@ -30,6 +30,12 @@ export const ROUTE_META: Record<RouteName, RouteMeta> = {
     label: 'Image Studio',
     title: 'Image Studio',
     description: 'Generate images with a model you have configured. Results stay on this machine.',
+  },
+  video: {
+    name: 'video',
+    label: 'Video Studio',
+    title: 'Video Studio',
+    description: 'Generate video with a model you have configured. Jobs run in the background.',
   },
   agents: {
     name: 'agents',
@@ -58,7 +64,7 @@ export const ROUTE_META: Record<RouteName, RouteMeta> = {
 };
 
 /** Navigation order — also the order the sidebar renders. */
-export const ROUTE_ORDER: readonly RouteName[] = ['chat', 'image', 'agents', 'models', 'settings', 'sync'];
+export const ROUTE_ORDER: readonly RouteName[] = ['chat', 'image', 'video', 'agents', 'models', 'settings', 'sync'];
 
 const ROUTE_NAMES: readonly string[] = ROUTE_ORDER;
 

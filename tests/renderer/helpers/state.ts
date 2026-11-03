@@ -9,6 +9,7 @@ import {
   useSettingsStore,
   useShellStore,
 } from '@renderer/lib/store';
+import { resetMediaStoreForTest } from '@renderer/lib/media-store';
 import { useToastStore } from '@renderer/lib/toast';
 
 export function resetStores(): void {
@@ -40,6 +41,9 @@ export function resetStores(): void {
     catalogStatus: 'idle',
     catalogError: null,
   });
+  // The media store also owns the one job-event subscription, so it is dropped
+  // here rather than left pointing at the previous test's bridge double.
+  resetMediaStoreForTest();
   useToastStore.setState({ items: [] });
   window.history.replaceState(null, '', '#/chat');
 }

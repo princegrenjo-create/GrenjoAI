@@ -14,6 +14,7 @@ import { AppNav } from './components/layout/AppNav';
 import { ErrorState, ToastHost } from './components/ui';
 import { ChatPage } from './pages/chat/ChatPage';
 import { ImagePage } from './pages/image/ImagePage';
+import { VideoPage } from './pages/video/VideoPage';
 import { AgentsPage } from './pages/agents/AgentsPage';
 import { ModelsPage } from './pages/models/ModelsPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
@@ -26,6 +27,8 @@ function RouteView({ route }: { route: Route }): ReactElement {
       return <ChatPage />;
     case 'image':
       return <ImagePage />;
+    case 'video':
+      return <VideoPage />;
     case 'agents':
       return <AgentsPage />;
     case 'models':

@@ -17,6 +17,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactElement } from 're
 import type { GenerationJob, GenerationMedia } from '@shared/media';
 import { supportsTask } from '@shared/capabilities';
 import { getApi } from '@renderer/lib/api';
+import { useMediaStore } from '@renderer/lib/media-store';
 import { asAppError } from '@shared/errors';
 import { toast } from '@renderer/lib/toast';
 import { Page } from '@renderer/components/layout/Page';
@@ -33,6 +34,7 @@ import {
   Skeleton,
   Textarea,
 } from '@renderer/components/ui';
+import { JobList } from '@renderer/components/media/JobList';
 import { MediaGrid, MediaPreviewBody } from '@renderer/components/media/MediaCard';
 import { CloseIcon, ImageIcon } from '@renderer/components/icons';
 import type { ModelDescriptor, ProviderConfig } from '@shared/types';
@@ -65,28 +67,20 @@ const RESOLUTION_OPTIONS = [
   { value: '4K', label: '4K' },
 ];
 
-type LoadStatus = 'idle' | 'loading' | 'ready' | 'error';
-
-interface StudioState {
-  status: LoadStatus;
-  error: string | null;
-  models: ModelDescriptor[];
-  providers: ProviderConfig[];
-  items: GenerationMedia[];
-  jobs: GenerationJob[];
-}
-
-const INITIAL: StudioState = {
-  status: 'loading',
-  error: null,
-  models: [],
-  providers: [],
-  items: [],
-  jobs: [],
-};
-
+/**
+ * The library and the live jobs live in the shared media store, not in this
+ * component: a generation that survives navigating to another page is the whole
+ * point, and it is the same data the Video Studio shows.
+ */
 export function ImagePage(): ReactElement {
-  const [state, setState] = useState<StudioState>(INITIAL);
+  const items = useMediaStore((store) => store.items);
+  const jobs = useMediaStore((store) => store.jobs);
+  const status = useMediaStore((store) => store.status);
+  const loadError = useMediaStore((store) => store.error);
+  const load = useMediaStore((store) => store.load);
+  const [models, setModels] = useState<ModelDescriptor[]>([]);
+  const [providers, setProviders] = useState<ProviderConfig[]>([]);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const [providerId, setProviderId] = useState('');
   const [modelId, setModelId] = useState('');
   const [prompt, setPrompt] = useState('');
@@ -101,52 +95,29 @@ export function ImagePage(): ReactElement {
   const [preview, setPreview] = useState<GenerationMedia | null>(null);
   const [pendingDelete, setPendingDelete] = useState<GenerationMedia | null>(null);
 
-  const load = useCallback(async () => {
-    setState((current) => ({ ...current, status: 'loading', error: null }));
+  const loadCatalog = useCallback(async () => {
+    setCatalogError(null);
     try {
-      const [models, providers, items, jobs] = await Promise.all([
+      const [modelList, providerList] = await Promise.all([
         getApi().models.list(),
         getApi().providers.list(),
-        getApi().media.list(),
-        getApi().media.jobs(20),
       ]);
-      setState({ status: 'ready', error: null, models, providers, items, jobs });
+      setModels(modelList);
+      setProviders(providerList);
     } catch (error) {
-      setState((current) => ({
-        ...current,
-        status: 'error',
-        error: asAppError(error).message,
-      }));
+      setCatalogError(asAppError(error).message);
     }
   }, []);
 
   useEffect(() => {
+    void loadCatalog();
     void load();
-  }, [load]);
-
-  // Progress arrives as events; a job that changes updates the list in place.
-  useEffect(() => {
-    const unsubscribe = getApi().media.onEvent((job) => {
-      setState((current) => {
-        const jobs = current.jobs.some((entry) => entry.id === job.id)
-          ? current.jobs.map((entry) => (entry.id === job.id ? job : entry))
-          : [job, ...current.jobs];
-        return { ...current, jobs: jobs.slice(0, 20) };
-      });
-      if (job.status === 'succeeded') {
-        // The bytes exist now, so refresh the library rather than guessing its shape.
-        void getApi()
-          .media.list()
-          .then((items) => setState((current) => ({ ...current, items })))
-          .catch(() => undefined);
-      }
-    });
-    return unsubscribe;
-  }, []);
+    return useMediaStore.getState().attach();
+  }, [load, loadCatalog]);
 
   const imageModels = useMemo(
-    () => state.models.filter((model) => supportsTask(model.capabilities, 'image')),
-    [state.models],
+    () => models.filter((model) => supportsTask(model.capabilities, 'image')),
+    [models],
   );
 
   const selected = useMemo(
@@ -156,15 +127,15 @@ export function ImagePage(): ReactElement {
 
   /** The provider's *kind* decides which controls it documents. */
   const providerKind = useMemo(
-    () => state.providers.find((provider) => provider.id === selected?.providerId)?.kind ?? '',
-    [state.providers, selected],
+    () => providers.find((provider) => provider.id === selected?.providerId)?.kind ?? '',
+    [providers, selected],
   );
 
   const isGemini = providerKind === 'gemini';
 
   const acceptsReferences = selected?.capabilities.imageInput === true;
 
-  const activeJobs = state.jobs.filter((job) => job.status === 'queued' || job.status === 'running');
+  const activeJobs = jobs.filter((job) => job.status === 'queued' || job.status === 'running');
 
   const submit = async (): Promise<void> => {
     if (!selected) return;
@@ -218,7 +189,7 @@ export function ImagePage(): ReactElement {
     setPendingDelete(null);
     try {
       await getApi().media.remove(target.id);
-      setState((current) => ({ ...current, items: current.items.filter((item) => item.id !== target.id) }));
+      useMediaStore.getState().forgetItem(target.id);
       setReferenceIds((ids) => ids.filter((id) => id !== target.id));
       toast.success('Deleted from the library.');
     } catch (error) {
@@ -237,22 +208,25 @@ export function ImagePage(): ReactElement {
       title="Image Studio"
       description="Generate images with a model you have configured. Results stay on this machine and appear in the library below."
       actions={
-        <Button variant="secondary" onClick={() => void load()} loading={state.status === 'loading'}>
+        <Button variant="secondary" onClick={() => void load(true)} loading={status === 'loading'}>
           Refresh
         </Button>
       }
     >
-      {state.status === 'loading' ? <Skeleton lines={6} label="Loading the Image Studio" /> : null}
+      {status === 'loading' ? <Skeleton lines={6} label="Loading the Image Studio" /> : null}
 
-      {state.status === 'error' ? (
+      {status === 'error' || catalogError !== null ? (
         <ErrorState
           title="The Image Studio could not load"
-          description={state.error ?? 'Something went wrong reading your models and library.'}
-          onRetry={() => void load()}
+          description={catalogError ?? loadError ?? 'Something went wrong reading your models and library.'}
+          onRetry={() => {
+            void load(true);
+            void loadCatalog();
+          }}
         />
       ) : null}
 
-      {state.status === 'ready' ? (
+      {status === 'ready' && catalogError === null ? (
         <div className="pds-studio">
           <form
             className="pds-studio__form"
@@ -384,28 +358,9 @@ export function ImagePage(): ReactElement {
           <section aria-label="Generation history">
             <h2 className="pds-studio__legend">Library</h2>
 
-            {activeJobs.length > 0 ? (
-              <ul className="pds-studio__jobs">
-                {activeJobs.map((job) => (
-                  <li key={job.id} className="pds-studio__job">
-                    <Badge tone="info" dot>
-                      {job.status === 'queued' ? 'Queued' : 'Generating'}
-                    </Badge>
-                    <span className="pds-studio__job-text">{job.prompt}</span>
-                    <Progress
-                      label={`Progress for: ${job.prompt}`}
-                      value={job.progress}
-                      valueText={job.progress === null ? 'Working…' : `${job.progress}%`}
-                    />
-                    <Button variant="ghost" size="sm" onClick={() => void cancel(job)}>
-                      Cancel
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
+            <JobList jobs={activeJobs} onCancel={(job) => void cancel(job)} />
 
-            {state.items.length === 0 ? (
+            {items.length === 0 ? (
               <EmptyState
                 icon={<ImageIcon />}
                 title="Nothing generated yet"
@@ -413,7 +368,7 @@ export function ImagePage(): ReactElement {
               />
             ) : (
               <MediaGrid
-                items={state.items}
+                items={items}
                 onOpen={setPreview}
                 onExport={(item) => void exportItem(item)}
                 onRemove={setPendingDelete}

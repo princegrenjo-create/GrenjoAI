@@ -310,6 +310,14 @@ export function ImageIcon({ className }: IconProps): ReactElement {
   );
 }
 
+export function VideoIcon({ className }: IconProps): ReactElement {
+  return (
+    <IconBase className={className}>
+      <rect x="3" y="6" width="13" height="12" rx="2.5" />
+      <path d="m16 10.5 5-3v9l-5-3z" />
+    </IconBase>
+  );
+}
 export function MicIcon({ className }: IconProps): ReactElement {
   return (
     <IconBase className={className}>

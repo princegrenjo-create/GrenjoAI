@@ -7,6 +7,7 @@ import {
   SettingsIcon,
   SparkIcon,
   SyncIcon,
+  VideoIcon,
 } from '../icons';
 import { Tooltip } from '../ui';
 import { ROUTE_META, ROUTE_ORDER, routeToHash, type Route, type RouteName } from '@renderer/lib/router';
@@ -14,6 +15,7 @@ import { ROUTE_META, ROUTE_ORDER, routeToHash, type Route, type RouteName } from
 const NAV_ICONS: Record<RouteName, ReactElement> = {
   chat: <ChatIcon />,
   image: <ImageIcon />,
+  video: <VideoIcon />,
   agents: <AgentsIcon />,
   models: <ModelsIcon />,
   settings: <SettingsIcon />,

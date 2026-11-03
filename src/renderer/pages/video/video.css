@@ -1,0 +1,10 @@
+/*
+ * The Video Studio. Everything structural is in `components/media/media.css`;
+ * this file holds only what is specific to the video surface.
+ */
+
+.pds-video__note {
+  margin: 0;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+}

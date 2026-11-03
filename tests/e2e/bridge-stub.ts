@@ -14,14 +14,17 @@ import type { Page } from '@playwright/test';
 export interface BridgeStubOptions {
   imageModels?: number;
   imageItems?: number;
+  /** Adds a video model and serves video items, for the Video Studio spec. */
+  video?: boolean;
 }
 
 export async function installBridgeStub(page: Page, options: BridgeStubOptions = {}): Promise<void> {
   const imageModels = options.imageModels ?? 1;
   const imageItems = options.imageItems ?? 0;
+  const video = options.video === true;
 
   await page.addInitScript(
-    ({ models: imageModelCount, items: imageItemCount }) => {
+    ({ models: imageModelCount, items: imageItemCount, video: withVideo }) => {
       const imageCapabilities = {
         chat: false,
         streaming: false,
@@ -68,7 +71,7 @@ export async function installBridgeStub(page: Page, options: BridgeStubOptions =
       const providers = [
         {
           id: 'p-openai',
-          kind: 'openai',
+          kind: withVideo ? 'gemini' : 'openai',
           name: 'OpenAI',
           baseUrl: 'https://api.openai.com/v1',
           enabled: true,
@@ -87,12 +90,15 @@ export async function installBridgeStub(page: Page, options: BridgeStubOptions =
         ...Array.from({ length: imageModelCount }, (_, index) =>
           descriptor(index, index === 0 ? 'gpt-image-2' : `gpt-image-2-${index}`, index === 0 ? 'GPT Image 2' : `GPT Image 2 (${index})`, imageCapabilities),
         ),
+        ...(withVideo
+          ? [descriptor(50, 'gemini-omni-1.1-flash', 'Gemini Omni Flash', { ...imageCapabilities, imageOutput: false, videoOutput: true, imageEditing: false })]
+          : []),
         descriptor(99, 'chat-model', 'Chat model', chatCapabilities),
       ];
 
       const mediaItems = Array.from({ length: imageItemCount }, (_, index) => ({
         id: `media-${index}`,
-        kind: 'image',
+        kind: withVideo ? 'video' : 'image',
         providerId: 'p-openai',
         modelId: 'gpt-image-2',
         prompt: `A heron at dawn, study ${index + 1}`,
@@ -186,6 +192,6 @@ export async function installBridgeStub(page: Page, options: BridgeStubOptions =
 
       window.api = api;
     },
-    { models: imageModels, items: imageItems },
+    { models: imageModels, items: imageItems, video },
   );
 }
